@@ -7,7 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import Link from "next/link"
-import { Plus, AlertTriangle } from "lucide-react"
+import { Plus, AlertTriangle, Download } from "lucide-react"
 
 const ALLERGENS = [
   { key: "gluten", label: "Gluten" },
@@ -45,12 +45,20 @@ export default async function AlergenosPage() {
             Los 14 alérgenos obligatorios — Reglamento UE 1169/2011
           </p>
         </div>
-        <Button asChild>
-          <Link href="/sanidad/alergenos/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo plato / producto
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <a href="/api/pdf/alergenos" download>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </a>
+          </Button>
+          <Button asChild>
+            <Link href="/sanidad/alergenos/nuevo">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo plato
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

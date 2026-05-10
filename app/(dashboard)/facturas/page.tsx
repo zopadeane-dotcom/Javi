@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
+import { InvoiceFilters } from "@/components/facturas/invoice-filters"
 import { format } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -63,40 +64,7 @@ export default async function FacturasPage({
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-3 flex-wrap">
-        <form className="flex gap-2 items-center">
-          <label className="text-sm font-medium">Año:</label>
-          <select
-            name="year"
-            defaultValue={year}
-            className="border rounded-md px-3 py-1.5 text-sm"
-            onChange={(e) => {
-              const url = new URL(window.location.href)
-              url.searchParams.set("year", e.target.value)
-              window.location.href = url.toString()
-            }}
-          >
-            {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </form>
-        <div className="flex gap-1">
-          {[null, 1, 2, 3, 4].map((q) => (
-            <Button
-              key={q ?? "all"}
-              variant={params.quarter === String(q) || (!params.quarter && q === null) ? "default" : "outline"}
-              size="sm"
-              asChild
-            >
-              <Link href={q ? `?year=${year}&quarter=${q}` : `?year=${year}`}>
-                {q ? `T${q}` : "Todo"}
-              </Link>
-            </Button>
-          ))}
-        </div>
-      </div>
+      <InvoiceFilters year={year} currentYear={currentYear} quarter={params.quarter} />
 
       {/* Resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

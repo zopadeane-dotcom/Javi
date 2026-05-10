@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
+import { MonthPicker } from "@/components/horarios/month-picker"
+import { ExportPdfButton } from "@/components/horarios/export-pdf-button"
 import { format, startOfMonth, endOfMonth } from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,30 +63,24 @@ export default async function HorariosPage({
             Registro de horas — {format(new Date(year, month - 1), "MMMM yyyy", { locale: es })}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/trabajadores/horarios/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir fichaje
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <ExportPdfButton
+            employees={(employees ?? []).map((e: any) => ({ id: e.id, full_name: e.full_name }))}
+            mes={mesParam}
+          />
+          <Button asChild>
+            <Link href="/trabajadores/horarios/nuevo">
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir fichaje
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filtro de mes */}
       <div className="flex items-center gap-2">
         <label className="text-sm font-medium">Mes:</label>
-        <form>
-          <input
-            type="month"
-            name="mes"
-            defaultValue={mesParam}
-            className="border rounded-md px-3 py-1.5 text-sm"
-            onChange={(e) => {
-              const url = new URL(window.location.href)
-              url.searchParams.set("mes", e.target.value)
-              window.location.href = url.toString()
-            }}
-          />
-        </form>
+        <MonthPicker value={mesParam} />
       </div>
 
       <Card>
