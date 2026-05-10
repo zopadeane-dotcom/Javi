@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 const schema = z.object({
@@ -44,59 +43,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xl">
+    <div className="min-h-screen flex">
+      {/* Panel izquierdo — decorativo */}
+      <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col justify-between p-12">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-md">
             W
           </div>
-          <CardTitle className="text-2xl">Workie</CardTitle>
-          <CardDescription>Accede a tu cuenta</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
+          <span className="text-sidebar-foreground font-semibold text-lg">Workie</span>
+        </div>
+        <div className="space-y-4">
+          <p className="text-3xl font-bold text-sidebar-foreground leading-snug">
+            Todo el papeleo<br />de tu negocio,<br />en un solo lugar.
+          </p>
+          <p className="text-sidebar-foreground/50 text-sm leading-relaxed">
+            Fichajes, facturas, APPCC, alérgenos y más.<br />
+            Cumplimiento normativo sin esfuerzo.
+          </p>
+        </div>
+        <p className="text-sidebar-foreground/30 text-xs">
+          © 2026 Workie · Legislación española
+        </p>
+      </div>
+
+      {/* Panel derecho — formulario */}
+      <div className="flex flex-1 items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Logo mobile */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-md">
+              W
+            </div>
+            <span className="font-semibold text-lg">Workie</span>
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold">Bienvenido de nuevo</h1>
+            <p className="text-muted-foreground text-sm">Accede a tu cuenta para continuar</p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tu@email.com"
-                {...register("email")}
-              />
-              {errors.email && (
-                <p className="text-destructive text-sm">{errors.email.message}</p>
-              )}
+              <Input id="email" type="email" placeholder="tu@email.com" {...register("email")} />
+              {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register("password")}
-              />
-              {errors.password && (
-                <p className="text-destructive text-sm">{errors.password.message}</p>
-              )}
+              <Input id="password" type="password" {...register("password")} />
+              {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Entrando..." : "Iniciar sesión"}
             </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              ¿No tienes cuenta?{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                Regístrate
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+
+          <p className="text-sm text-muted-foreground text-center">
+            ¿No tienes cuenta?{" "}
+            <Link href="/register" className="text-primary font-medium hover:underline">
+              Regístrate
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

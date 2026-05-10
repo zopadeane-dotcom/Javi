@@ -33,10 +33,10 @@ export default async function DashboardLayout({
   const userName = (profile as any)?.full_name ?? user.email ?? ""
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background">
       <Sidebar role={role} businessName={businessName} userName={userName} />
-      <main className="md:pl-64">
-        <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl">
+      <main className="md:pl-64 min-h-screen">
+        <div className="px-5 py-7 md:px-10 md:py-9 max-w-7xl">
           {children}
         </div>
       </main>

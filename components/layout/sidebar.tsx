@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 
 const adminNav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard },
@@ -44,7 +43,6 @@ const employeeNav = [
   { href: "/portal", label: "Mi portal", icon: LayoutDashboard },
   { href: "/portal/fichar", label: "Fichar", icon: Clock },
   { href: "/portal/historial", label: "Mis fichajes", icon: FileText },
-  { href: "/portal/horario", label: "Mi horario", icon: Users },
 ]
 
 interface SidebarProps {
@@ -57,9 +55,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [sanidadOpen, setSanidadOpen] = useState(
-    pathname.startsWith("/sanidad")
-  )
+  const [sanidadOpen, setSanidadOpen] = useState(pathname.startsWith("/sanidad"))
 
   const nav = role === "admin" ? adminNav : employeeNav
 
@@ -70,50 +66,67 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
     router.refresh()
   }
 
+  const isActive = (href: string) => pathname === href
+  const isGroupActive = (prefix: string) => pathname.startsWith(prefix)
+
   const sidebarContent = (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+
+      {/* Logo / negocio */}
       <div className="px-4 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-md">
             W
           </div>
           <div className="min-w-0">
-            <p className="truncate font-semibold text-sm">{businessName}</p>
-            <p className="truncate text-xs text-muted-foreground">{userName}</p>
+            <p className="truncate font-semibold text-sm text-sidebar-foreground">{businessName}</p>
+            <p className="truncate text-xs opacity-50">{userName}</p>
           </div>
         </div>
       </div>
 
-      <Separator />
+      <div className="mx-4 border-t border-sidebar-border" />
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+      {/* Navegación */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         {nav.map((item) => {
           if ("children" in item) {
+            const groupActive = isGroupActive("/sanidad")
             return (
               <div key={item.label}>
                 <button
                   onClick={() => setSanidadOpen((v) => !v)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
-                    pathname.startsWith("/sanidad") && "text-foreground"
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                    groupActive
+                      ? "text-sidebar-foreground bg-sidebar-accent"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                   )}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   {item.label}
+                  <svg
+                    className={cn("ml-auto h-3.5 w-3.5 opacity-50 transition-transform", sanidadOpen && "rotate-90")}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
                 {sanidadOpen && (
-                  <div className="ml-4 mt-0.5 space-y-0.5 border-l pl-3">
+                  <div className="mt-1 ml-3 pl-3 border-l border-sidebar-border space-y-0.5">
                     {item.children!.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
                         onClick={() => setOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
-                          pathname === child.href && "bg-muted text-foreground font-medium"
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150",
+                          isActive(child.href)
+                            ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                         )}
                       >
-                        <child.icon className="h-4 w-4 shrink-0" />
+                        <child.icon className="h-3.5 w-3.5 shrink-0" />
                         {child.label}
                       </Link>
                     ))}
@@ -129,8 +142,10 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               href={item.href}
               onClick={() => setOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
-                pathname === item.href && "bg-muted text-foreground"
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                isActive(item.href)
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -140,16 +155,17 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
         })}
       </nav>
 
-      <Separator />
-      <div className="p-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-muted-foreground"
+      <div className="mx-4 border-t border-sidebar-border" />
+
+      {/* Cerrar sesión */}
+      <div className="p-3">
+        <button
           onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-all duration-150"
         >
           <LogOut className="h-4 w-4" />
           Cerrar sesión
-        </Button>
+        </button>
       </div>
     </div>
   )
@@ -169,7 +185,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
@@ -177,7 +193,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
       {/* Mobile sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 md:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out md:hidden",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -185,7 +201,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-background">
+      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
         {sidebarContent}
       </aside>
     </>
