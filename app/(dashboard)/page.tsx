@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 import {
   Users, FileText, Thermometer, Award, AlertTriangle, Clock,
-  ArrowRight, CheckCircle,
+  ArrowRight, CheckCircle, UserPlus, Receipt, ClipboardCheck, Calculator,
 } from "lucide-react"
 
 function formatEur(n: number) {
@@ -205,28 +205,26 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Accesos rápidos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/trabajadores/nuevo">+ Trabajador</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/facturas/nueva">+ Factura</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/sanidad/appcc/nuevo">+ Control APPCC</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/facturas/modelo-303">Modelo 303</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border bg-card p-5 space-y-3">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Accesos rápidos</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { href: "/trabajadores/nuevo", icon: UserPlus, label: "Añadir trabajador", color: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
+              { href: "/facturas/nueva", icon: Receipt, label: "Nueva factura", color: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" },
+              { href: "/sanidad/appcc/nuevo", icon: ClipboardCheck, label: "Control APPCC", color: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" },
+              { href: "/facturas/modelo-303", icon: Calculator, label: "Modelo 303", color: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
+            ].map(({ href, icon: Icon, label, color }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${color}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )
