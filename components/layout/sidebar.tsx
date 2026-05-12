@@ -23,13 +23,14 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
 const adminNav = [
-  { href: "/", label: "Inicio", icon: LayoutDashboard },
-  { href: "/trabajadores", label: "Trabajadores", icon: Users },
-  { href: "/trabajadores/horarios", label: "Fichajes", icon: Clock },
-  { href: "/facturas", label: "Facturas", icon: FileText },
+  { href: "/", label: "Inicio", icon: LayoutDashboard, tour: undefined },
+  { href: "/trabajadores", label: "Trabajadores", icon: Users, tour: "trabajadores" },
+  { href: "/trabajadores/horarios", label: "Fichajes", icon: Clock, tour: "fichajes" },
+  { href: "/facturas", label: "Facturas", icon: FileText, tour: "facturas" },
   {
     label: "Sanidad",
     icon: ShieldCheck,
+    tour: "sanidad",
     children: [
       { href: "/sanidad/appcc", label: "APPCC", icon: Thermometer },
       { href: "/sanidad/alergenos", label: "Alérgenos", icon: AlertTriangle },
@@ -95,6 +96,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
             return (
               <div key={item.label}>
                 <button
+                  data-tour="sanidad"
                   onClick={() => setSanidadOpen((v) => !v)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
@@ -141,6 +143,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
+              data-tour={"tour" in item ? item.tour : undefined}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                 isActive(item.href)

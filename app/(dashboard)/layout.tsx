@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Toaster } from "@/components/ui/sonner"
+import { Onboarding } from "@/components/tutorial/onboarding"
 
 export default async function DashboardLayout({
   children,
@@ -41,6 +42,7 @@ export default async function DashboardLayout({
         </div>
       </main>
       <Toaster richColors position="top-right" />
+      <Onboarding userName={userName} />
     </div>
   )
 }
