@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Plus, User } from "lucide-react"
+import { InviteButton } from "@/components/trabajadores/invite-button"
 import type { Employee } from "@/lib/supabase/types"
 
 const contractLabels: Record<string, string> = {
@@ -42,12 +43,15 @@ export default async function TrabajadoresPage() {
             Gestiona el equipo del establecimiento
           </p>
         </div>
-        <Button asChild>
-          <Link href="/trabajadores/nuevo">
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir trabajador
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <InviteButton />
+          <Button asChild>
+            <Link href="/trabajadores/nuevo">
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir trabajador
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

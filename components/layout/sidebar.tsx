@@ -15,8 +15,11 @@ import {
   LogOut,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "lucide-react"
 import { useState } from "react"
+import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -56,6 +59,7 @@ interface SidebarProps {
 export function Sidebar({ role, businessName, userName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const [sanidadOpen, setSanidadOpen] = useState(pathname.startsWith("/sanidad"))
 
@@ -123,10 +127,10 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
                         href={child.href}
                         onClick={() => setOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-150",
+                          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 border",
                           isActive(child.href)
-                            ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                            ? "bg-primary text-primary-foreground shadow-sm border-primary/20"
+                            : "text-sidebar-foreground/60 border-transparent hover:text-sidebar-foreground hover:bg-sidebar-accent/70 hover:border-sidebar-border/30 hover:scale-[1.01]"
                         )}
                       >
                         <child.icon className="h-3.5 w-3.5 shrink-0" />
@@ -146,10 +150,10 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               onClick={() => setOpen(false)}
               data-tour={"tour" in item ? item.tour : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 border",
                 isActive(item.href)
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                  ? "bg-primary text-primary-foreground shadow-md border-primary/20"
+                  : "text-sidebar-foreground/70 border-sidebar-border/40 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:border-sidebar-border hover:scale-[1.01]"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -174,9 +178,40 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
           <Sparkles className="h-4 w-4" />
           ✨ Tutorial
         </button>
+        {/* Dark / Light toggle */}
+        <div className="flex items-center justify-between rounded-xl border border-sidebar-border/40 px-3 py-2.5">
+          <span className="text-sm font-medium text-sidebar-foreground/60">Apariencia</span>
+          <div className="flex gap-1 bg-sidebar-accent rounded-lg p-0.5">
+            <button
+              onClick={() => setTheme("light")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+                theme === "light"
+                  ? "bg-white text-gray-800 shadow-sm"
+                  : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+              )}
+            >
+              <Sun className="h-3.5 w-3.5" />
+              Claro
+            </button>
+            <button
+              onClick={() => setTheme("dark")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+                theme === "dark"
+                  ? "bg-sidebar-foreground/10 text-sidebar-foreground shadow-sm"
+                  : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+              )}
+            >
+              <Moon className="h-3.5 w-3.5" />
+              Oscuro
+            </button>
+          </div>
+        </div>
+
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-all duration-150"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-all duration-150"
         >
           <LogOut className="h-4 w-4" />
           Cerrar sesión

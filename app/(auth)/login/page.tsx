@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Users } from "lucide-react"
 
 const schema = z.object({
   email: z.string().email("Email no válido"),
@@ -103,21 +104,21 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Soy trabajador */}
+          <Link
+            href="/unirse"
+            className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all py-3 text-sm font-semibold text-primary"
+          >
+            <Users className="h-4 w-4" />
+            Soy trabajador — Tengo un código de invitación
+          </Link>
+
           <p className="text-sm text-muted-foreground text-center">
-            ¿No tienes cuenta?{" "}
+            ¿Eres el dueño del negocio?{" "}
             <Link href="/register" className="text-primary font-medium hover:underline">
-              Regístrate
+              Crea tu cuenta aquí
             </Link>
           </p>
-          <div className="text-center">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-primary transition-colors"
-            >
-              <span>✨</span>
-              ¿Quieres saber cómo funciona Workie?
-            </Link>
-          </div>
         </div>
       </div>
     </div>
