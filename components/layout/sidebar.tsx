@@ -184,38 +184,59 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
             <Link
               href="/trabajadores"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 border text-sidebar-foreground/70 border-sidebar-border/40 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:border-sidebar-border hover:scale-[1.01]"
+              data-tour="invitar"
+              className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-white transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.55 0.18 290), oklch(0.45 0.16 270))",
+                boxShadow: "0 4px 14px oklch(0.55 0.18 290 / 0.4)",
+              }}
             >
-              <Users className="h-4 w-4 shrink-0" />
+              <Users className="h-4 w-4" />
               Invitar trabajador
             </Link>
 
-            <div className="rounded-xl border border-sidebar-border/40 p-3 space-y-2">
-              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-widest px-1">Apariencia</p>
-              <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-xl overflow-hidden border border-sidebar-border/40">
+              <p className="text-[10px] font-bold text-sidebar-foreground/35 uppercase tracking-widest px-3 pt-2.5 pb-1.5">Apariencia</p>
+              <div className="grid grid-cols-2 gap-0 divide-x divide-sidebar-border/40">
                 <button
                   onClick={() => setTheme("light")}
                   className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 text-xs font-semibold transition-all duration-200",
+                    "flex flex-col items-center gap-2 py-3.5 px-2 text-xs font-bold transition-all duration-200",
                     theme === "light"
-                      ? "bg-white text-gray-800 shadow-md ring-2 ring-white/30"
-                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+                      ? "text-amber-500 bg-white/10"
+                      : "text-sidebar-foreground/35 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent/40"
                   )}
                 >
-                  <Sun className={cn("h-5 w-5 transition-all", theme === "light" ? "text-amber-500" : "")} />
+                  <div className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
+                    theme === "light"
+                      ? "bg-amber-400/20 shadow-inner"
+                      : "bg-sidebar-accent/50"
+                  )}>
+                    <Sun className="h-5 w-5" />
+                  </div>
                   Claro
+                  {theme === "light" && <div className="w-4 h-0.5 rounded-full bg-amber-400" />}
                 </button>
                 <button
                   onClick={() => setTheme("dark")}
                   className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 text-xs font-semibold transition-all duration-200",
+                    "flex flex-col items-center gap-2 py-3.5 px-2 text-xs font-bold transition-all duration-200",
                     theme === "dark"
-                      ? "bg-sidebar-foreground/15 text-sidebar-foreground shadow-md ring-2 ring-sidebar-foreground/20"
-                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+                      ? "text-blue-300 bg-blue-500/10"
+                      : "text-sidebar-foreground/35 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent/40"
                   )}
                 >
-                  <Moon className={cn("h-5 w-5 transition-all", theme === "dark" ? "text-blue-300" : "")} />
+                  <div className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200",
+                    theme === "dark"
+                      ? "bg-blue-500/20 shadow-inner"
+                      : "bg-sidebar-accent/50"
+                  )}>
+                    <Moon className="h-5 w-5" />
+                  </div>
                   Oscuro
+                  {theme === "dark" && <div className="w-4 h-0.5 rounded-full bg-blue-400" />}
                 </button>
               </div>
             </div>

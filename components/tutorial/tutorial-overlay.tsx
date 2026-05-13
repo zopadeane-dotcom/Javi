@@ -144,6 +144,33 @@ function PreviewSanidad() {
   )
 }
 
+function PreviewInvitar() {
+  return (
+    <div className="space-y-2">
+      <div className="rounded-xl bg-white border border-gray-100 p-3 space-y-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <span>Código generado</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="font-mono font-black text-2xl tracking-[0.15em] text-gray-800">AB3F8C2D</span>
+          <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">Válido 30 días</span>
+        </div>
+      </div>
+      <div className="rounded-xl bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800 space-y-1">
+        <p className="font-semibold">Enlace para compartir por WhatsApp 📱</p>
+        <p className="font-mono text-[10px] text-violet-600 break-all">javi.vercel.app/unirse?codigo=AB3F8C2D</p>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl bg-white border border-gray-100 px-3 py-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-700 font-bold text-xs shrink-0">A</div>
+        <div>
+          <p className="text-xs font-medium text-gray-800">Ana García se ha unido</p>
+          <p className="text-[10px] text-gray-400">Acceso al portal de empleado ✓</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PreviewFinal() {
   return (
     <div className="flex flex-col items-center justify-center py-3 space-y-2">
@@ -213,6 +240,15 @@ const STEPS: Step[] = [
     description: "APPCC, carta de alérgenos, fichas de proveedores y certificados de manipuladores. Todo lo que pide una inspección sanitaria.",
     tip: "La carta de alérgenos es obligatoria por ley desde 2015. Exporta el PDF y cuélgala en el local.",
     preview: <PreviewSanidad />,
+    side: "right",
+  },
+  {
+    target: "[data-tour='invitar']",
+    emoji: "🤝",
+    title: "Invitar trabajadores",
+    description: "Genera un código único y mándaselo a tus trabajadores por WhatsApp. Con ese código crean su propia cuenta y pueden fichar desde el móvil sin que tú tengas que hacer nada más.",
+    tip: "Cada código solo puede usarse una vez y caduca en 30 días. Puedes generar tantos como necesites.",
+    preview: <PreviewInvitar />,
     side: "right",
   },
   {
