@@ -360,8 +360,8 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
       >
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
 
-          {/* Cabecera */}
-          <div className="bg-gradient-to-br from-[oklch(0.185_0.035_225)] to-[oklch(0.30_0.06_210)] px-5 py-4">
+          {/* Cabecera — teal/agua */}
+          <div className="bg-gradient-to-br from-[oklch(0.52_0.15_178)] to-[oklch(0.44_0.14_195)] dark:from-[oklch(0.30_0.10_190)] dark:to-[oklch(0.24_0.08_200)] px-5 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 text-xl shrink-0">

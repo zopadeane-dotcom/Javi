@@ -27,14 +27,16 @@ import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
 
 const adminNav = [
-  { href: "/", label: "Inicio", icon: LayoutDashboard, tour: undefined },
-  { href: "/trabajadores", label: "Trabajadores", icon: Users, tour: "trabajadores" },
-  { href: "/trabajadores/horarios", label: "Fichajes", icon: Clock, tour: "fichajes" },
-  { href: "/facturas", label: "Facturas", icon: FileText, tour: "facturas" },
+  { href: "/", label: "Inicio", icon: LayoutDashboard, tour: undefined, color: "bg-blue-500/20 text-blue-300", activeColor: "bg-blue-500 text-white" },
+  { href: "/trabajadores", label: "Trabajadores", icon: Users, tour: "trabajadores", color: "bg-violet-500/20 text-violet-300", activeColor: "bg-violet-500 text-white" },
+  { href: "/trabajadores/horarios", label: "Fichajes", icon: Clock, tour: "fichajes", color: "bg-amber-500/20 text-amber-300", activeColor: "bg-amber-500 text-white" },
+  { href: "/facturas", label: "Facturas", icon: FileText, tour: "facturas", color: "bg-sky-500/20 text-sky-300", activeColor: "bg-sky-500 text-white" },
   {
     label: "Sanidad",
     icon: ShieldCheck,
     tour: "sanidad",
+    color: "bg-emerald-500/20 text-emerald-300",
+    activeColor: "bg-emerald-500 text-white",
     children: [
       { href: "/sanidad/appcc", label: "APPCC", icon: Thermometer },
       { href: "/sanidad/alergenos", label: "Alérgenos", icon: AlertTriangle },
@@ -104,13 +106,18 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
                   data-tour="sanidad"
                   onClick={() => setSanidadOpen((v) => !v)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
                     groupActive
                       ? "text-sidebar-foreground bg-sidebar-accent"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 hover:scale-[1.01]"
                   )}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                    groupActive ? "bg-emerald-500 text-white" : "bg-emerald-500/20 text-emerald-300"
+                  )}>
+                    <item.icon className="h-3.5 w-3.5" />
+                  </span>
                   {item.label}
                   <svg
                     className={cn("ml-auto h-3.5 w-3.5 opacity-50 transition-transform", sanidadOpen && "rotate-90")}
@@ -150,13 +157,20 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               onClick={() => setOpen(false)}
               data-tour={"tour" in item ? item.tour : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-150 border",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 group",
                 isActive(item.href)
-                  ? "bg-primary text-primary-foreground shadow-md border-primary/20"
-                  : "text-sidebar-foreground/70 border-sidebar-border/40 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:border-sidebar-border hover:scale-[1.01]"
+                  ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
+                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 hover:scale-[1.01]"
               )}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <span className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                isActive(item.href)
+                  ? ("color" in item ? item.activeColor : "bg-primary text-white")
+                  : ("color" in item ? item.color : "bg-sidebar-accent text-sidebar-foreground/60")
+              )}>
+                <item.icon className="h-3.5 w-3.5" />
+              </span>
               {item.label}
             </Link>
           )
@@ -176,31 +190,31 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               Invitar trabajador
             </Link>
 
-            <div className="flex items-center justify-between rounded-xl border border-sidebar-border/40 px-3 py-2.5">
-              <span className="text-sm font-medium text-sidebar-foreground/60">Apariencia</span>
-              <div className="flex gap-1 bg-sidebar-accent rounded-lg p-0.5">
+            <div className="rounded-xl border border-sidebar-border/40 p-3 space-y-2">
+              <p className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-widest px-1">Apariencia</p>
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setTheme("light")}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+                    "flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 text-xs font-semibold transition-all duration-200",
                     theme === "light"
-                      ? "bg-white text-gray-800 shadow-sm"
-                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+                      ? "bg-white text-gray-800 shadow-md ring-2 ring-white/30"
+                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <Sun className="h-3.5 w-3.5" />
+                  <Sun className={cn("h-5 w-5 transition-all", theme === "light" ? "text-amber-500" : "")} />
                   Claro
                 </button>
                 <button
                   onClick={() => setTheme("dark")}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all",
+                    "flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 text-xs font-semibold transition-all duration-200",
                     theme === "dark"
-                      ? "bg-sidebar-foreground/10 text-sidebar-foreground shadow-sm"
-                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70"
+                      ? "bg-sidebar-foreground/15 text-sidebar-foreground shadow-md ring-2 ring-sidebar-foreground/20"
+                      : "text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <Moon className="h-3.5 w-3.5" />
+                  <Moon className={cn("h-5 w-5 transition-all", theme === "dark" ? "text-blue-300" : "")} />
                   Oscuro
                 </button>
               </div>
