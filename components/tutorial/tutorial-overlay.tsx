@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { ArrowRight, ArrowLeft, X, CheckCircle } from "lucide-react"
 
 interface Step {
@@ -9,52 +9,47 @@ interface Step {
   description: string
   example?: string
   emoji: string
-  tooltipSide?: "top" | "bottom" | "left" | "right"
 }
 
 const STEPS: Step[] = [
   {
     emoji: "🏠",
     title: "Tu centro de control",
-    description: "Este es el Dashboard. De un vistazo ves cuántos trabajadores tienes activos, las facturas del trimestre, los controles de sanidad de hoy y el estado de los certificados.",
-    example: "💡 Si ves un número en rojo, algo requiere tu atención urgente.",
+    description: "El Dashboard te muestra de un vistazo lo más importante: trabajadores activos, facturas del trimestre, controles sanitarios de hoy y el estado de los certificados.",
+    example: "💡 Si aparece un número en rojo, algo requiere atención urgente.",
   },
   {
     target: "[data-tour='trabajadores']",
     emoji: "👥",
     title: "Gestión de trabajadores",
-    description: "Aquí registras a todo tu equipo: nombre, DNI, tipo de contrato, horas semanales... Todo lo que necesitas para cumplir con la normativa laboral española.",
-    example: "💡 Cuando des de alta a un trabajador, puedes invitarle a la app para que fiche desde su móvil.",
-    tooltipSide: "right",
+    description: "Aquí registras a todo tu equipo: nombre, DNI, tipo de contrato, horas semanales... Todo lo necesario para cumplir la normativa laboral española.",
+    example: "💡 Tras dar de alta a un trabajador puedes invitarle a la app para que fiche desde su móvil.",
   },
   {
     target: "[data-tour='fichajes']",
     emoji: "⏱️",
     title: "Fichajes y registro horario",
     description: "El Real Decreto-ley 8/2019 obliga a registrar la jornada de todos los trabajadores. Aquí tienes el historial completo y puedes exportar informes PDF firmables.",
-    example: "💡 Cada trabajador puede fichar desde su propio móvil entrando con su cuenta.",
-    tooltipSide: "right",
+    example: "💡 Cada trabajador puede fichar desde su propio móvil con su cuenta.",
   },
   {
     target: "[data-tour='facturas']",
     emoji: "🧾",
     title: "Facturas de proveedores",
-    description: "Registra cada factura que recibes de tus proveedores. Workie calcula el IVA automáticamente y lo agrupa por trimestre para que declares el Modelo 303 sin dolor de cabeza.",
+    description: "Registra cada factura que recibes. Workie calcula el IVA automáticamente y lo agrupa por trimestre para el Modelo 303.",
     example: "💡 IVA al 10% para hostelería, 21% para el resto. Workie lo separa solo.",
-    tooltipSide: "right",
   },
   {
     target: "[data-tour='sanidad']",
     emoji: "🛡️",
     title: "Módulo de Sanidad",
-    description: "Cuatro herramientas de cumplimiento sanitario obligatorio: APPCC (temperaturas, limpieza, plagas), alérgenos de tus platos, fichas de proveedores homologados y certificados de manipuladores.",
-    example: "💡 La carta de alérgenos es obligatoria por ley desde 2015. Puedes exportarla en PDF para colgarla en el local.",
-    tooltipSide: "right",
+    description: "Cuatro herramientas de cumplimiento obligatorio: APPCC (temperaturas, limpieza, plagas), carta de alérgenos, fichas de proveedores y certificados de manipuladores.",
+    example: "💡 La carta de alérgenos es obligatoria por ley desde 2015. Puedes imprimirla en PDF para colgarla en el local.",
   },
   {
     emoji: "🎉",
-    title: "¡Ya lo sabes todo!",
-    description: "Workie está diseñado para que no tengas que pensar en el papeleo. Registras, Workie organiza. ¿Tienes dudas? Pulsa el botón '?' en cualquier momento para relanzar este tour.",
+    title: "¡Ya lo tienes todo!",
+    description: "Workie está hecho para que no tengas que pensar en el papeleo. Tú registras, Workie organiza. Pulsa el botón ⓘ en cualquier momento para volver a ver este tour.",
     example: "💡 Empieza añadiendo tus trabajadores y tu primera factura.",
   },
 ]
@@ -98,15 +93,15 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
       setStep(next)
       setVisible(true)
       setAnimating(false)
-    }, 220)
+    }, 200)
   }
 
   function finish() {
     setVisible(false)
-    setTimeout(onFinish, 300)
+    setTimeout(onFinish, 280)
   }
 
-  const PAD = 12
+  const PAD = 10
   const spotStyle = targetRect
     ? {
         top: targetRect.top - PAD,
@@ -116,165 +111,145 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
       }
     : null
 
-  // Posición del tooltip
-  let tooltipStyle: React.CSSProperties = {}
-  if (spotStyle) {
-    const side = current.tooltipSide ?? "bottom"
-    const GAP = 18
-    if (side === "right") {
-      tooltipStyle = {
-        top: spotStyle.top + spotStyle.height / 2,
-        left: spotStyle.left + spotStyle.width + GAP,
-        transform: "translateY(-50%)",
-      }
-    } else {
-      tooltipStyle = {
-        top: spotStyle.top + spotStyle.height + GAP,
-        left: "50%",
-        transform: "translateX(-50%)",
-      }
-    }
-  } else {
-    tooltipStyle = {
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-    }
-  }
-
   return (
-    <div className="fixed inset-0 z-[199]" style={{ pointerEvents: "auto" }}>
-
-      {/* Fondo oscuro — con agujero si hay target */}
+    <div className="fixed inset-0 z-[199]">
+      {/* Fondo oscuro */}
       {spotStyle ? (
-        <>
-          {/* Cuatro franjas oscuras alrededor del spotlight */}
-          <div className="absolute inset-0 bg-black/60" style={{
+        <div
+          className="absolute inset-0 bg-black/65"
+          style={{
             clipPath: `polygon(
-              0 0, 100% 0, 100% 100%, 0 100%,
-              0 ${spotStyle.top}px,
+              0% 0%, 100% 0%, 100% 100%, 0% 100%,
+              0% ${spotStyle.top}px,
               ${spotStyle.left}px ${spotStyle.top}px,
               ${spotStyle.left}px ${spotStyle.top + spotStyle.height}px,
               ${spotStyle.left + spotStyle.width}px ${spotStyle.top + spotStyle.height}px,
               ${spotStyle.left + spotStyle.width}px ${spotStyle.top}px,
               100% ${spotStyle.top}px,
-              100% 100%, 0 100%
+              100% 100%, 0% 100%
             )`,
-          }} />
-          {/* Borde brillante alrededor del elemento */}
-          <div
-            className="absolute rounded-2xl border-2 border-primary shadow-[0_0_0_4px_oklch(0.52_0.14_172/0.2)] transition-all duration-300"
-            style={{ ...spotStyle, pointerEvents: "none" }}
-          />
-        </>
+          }}
+        />
       ) : (
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-black/65" />
       )}
 
-      {/* Tooltip / bocadillo */}
-      <div
-        className={`absolute z-10 w-80 transition-all duration-220 ease-out
-          ${visible ? "opacity-100 scale-100" : "opacity-0 scale-95"}
-        `}
-        style={tooltipStyle}
-      >
-        {/* Flecha si tiene target a la derecha */}
-        {spotStyle && current.tooltipSide === "right" && (
-          <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2.5 w-0 h-0"
-            style={{
-              borderTop: "10px solid transparent",
-              borderBottom: "10px solid transparent",
-              borderRight: "10px solid white",
-            }}
-          />
-        )}
-        {/* Flecha si tiene target abajo */}
-        {spotStyle && (!current.tooltipSide || current.tooltipSide === "bottom") && (
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2.5 w-0 h-0"
-            style={{
-              borderLeft: "10px solid transparent",
-              borderRight: "10px solid transparent",
-              borderBottom: "10px solid white",
-            }}
-          />
-        )}
+      {/* Borde brillante alrededor del spotlight */}
+      {spotStyle && (
+        <div
+          className="absolute rounded-xl border-2 border-primary pointer-events-none"
+          style={{
+            ...spotStyle,
+            boxShadow: "0 0 0 4px oklch(0.52 0.14 172 / 0.25)",
+            transition: "all 0.3s ease",
+          }}
+        />
+      )}
 
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Cabecera */}
-          <div className="bg-gradient-to-r from-sidebar to-[oklch(0.28_0.05_200)] px-5 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{current.emoji}</span>
-                <span className="text-white font-bold text-base">{current.title}</span>
-              </div>
-              <button
-                onClick={finish}
-                className="text-white/40 hover:text-white/80 transition-colors ml-2"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+      {/* Bocadillo — siempre centrado en pantalla */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div
+          className={`pointer-events-auto w-full max-w-sm mx-4 transition-all duration-200 ease-out
+            ${visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-3"}
+          `}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
-          {/* Cuerpo */}
-          <div className="px-5 py-4 space-y-3">
-            <p className="text-sm text-gray-700 leading-relaxed">{current.description}</p>
-            {current.example && (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-800 leading-relaxed">
-                {current.example}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="px-5 pb-4 flex items-center justify-between">
-            {/* Puntos de progreso */}
-            <div className="flex gap-1.5">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => goTo(i)}
-                  className={`h-1.5 rounded-full transition-all duration-200 ${
-                    i === step
-                      ? "w-5 bg-primary"
-                      : i < step
-                      ? "w-1.5 bg-primary/40"
-                      : "w-1.5 bg-gray-200"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Navegación */}
-            <div className="flex gap-2">
-              {step > 0 && (
-                <button
-                  onClick={() => goTo(step - 1)}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Atrás
-                </button>
-              )}
-              {isLast ? (
+            {/* Cabecera */}
+            <div className="bg-gradient-to-r from-[oklch(0.185_0.035_225)] to-[oklch(0.30_0.06_210)] px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex items-center justify-center h-10 w-10 rounded-2xl bg-white/15 text-2xl"
+                  >
+                    {current.emoji}
+                  </span>
+                  <div>
+                    <p className="text-white/60 text-xs font-medium uppercase tracking-wider">
+                      Paso {step + 1} de {STEPS.length}
+                    </p>
+                    <p
+                      className="text-white font-bold leading-tight"
+                      style={{ fontSize: "1rem", letterSpacing: "-0.01em" }}
+                    >
+                      {current.title}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={finish}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
+                  className="text-white/30 hover:text-white/70 transition-colors p-1 ml-2 shrink-0"
                 >
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  ¡Empezar!
+                  <X className="h-4 w-4" />
                 </button>
-              ) : (
-                <button
-                  onClick={() => goTo(step + 1)}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Siguiente
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
+              </div>
+            </div>
+
+            {/* Cuerpo */}
+            <div className="px-6 py-5 space-y-3">
+              <p
+                className="text-gray-700 leading-relaxed"
+                style={{ fontSize: "0.875rem" }}
+              >
+                {current.description}
+              </p>
+              {current.example && (
+                <div className="flex gap-2.5 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3">
+                  <p className="text-amber-800 leading-relaxed" style={{ fontSize: "0.8rem" }}>
+                    {current.example}
+                  </p>
+                </div>
               )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-5 flex items-center justify-between">
+              {/* Puntos de progreso */}
+              <div className="flex gap-1.5 items-center">
+                {STEPS.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    className={`rounded-full transition-all duration-200 ${
+                      i === step
+                        ? "w-5 h-2 bg-primary"
+                        : i < step
+                        ? "w-2 h-2 bg-primary/35"
+                        : "w-2 h-2 bg-gray-200"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Navegación */}
+              <div className="flex gap-2">
+                {step > 0 && (
+                  <button
+                    onClick={() => goTo(step - 1)}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors px-3 py-2 rounded-xl hover:bg-gray-100 font-medium"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Atrás
+                  </button>
+                )}
+                {isLast ? (
+                  <button
+                    onClick={finish}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    ¡Empezar!
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => goTo(step + 1)}
+                    className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
+                  >
+                    Siguiente
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
