@@ -368,10 +368,10 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
                   {current.emoji}
                 </div>
                 <div>
-                  <p className="text-white/50 text-[10px] font-semibold uppercase tracking-widest mb-0.5">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-0.5">
                     {step + 1} / {STEPS.length}
                   </p>
-                  <p className="text-white font-bold text-[0.95rem] leading-tight" style={{ letterSpacing: "-0.015em" }}>
+                  <p className="text-white font-bold text-lg leading-tight" style={{ letterSpacing: "-0.02em" }}>
                     {current.title}
                   </p>
                 </div>
@@ -384,7 +384,7 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
 
           {/* Descripción */}
           <div className="px-5 pt-4 pb-3">
-            <p className="text-gray-600 leading-relaxed text-[0.825rem]">
+            <p className="text-gray-700 leading-relaxed text-[0.95rem]">
               {current.description}
             </p>
           </div>
@@ -400,7 +400,7 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
           <div className="px-5 pb-4">
             <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-4 flex gap-3">
               <span className="text-xl shrink-0 mt-0.5">💡</span>
-              <p className="text-amber-900 text-[0.85rem] leading-relaxed font-semibold">
+              <p className="text-amber-900 text-[0.92rem] leading-relaxed font-semibold">
                 {current.tip}
               </p>
             </div>

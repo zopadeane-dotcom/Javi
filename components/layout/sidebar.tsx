@@ -165,10 +165,14 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
       <div className="p-3 space-y-0.5">
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("workie:launch-tour"))}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary/80 hover:text-primary hover:bg-sidebar-accent/60 transition-all duration-150"
+          className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-white transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+          style={{
+            background: "linear-gradient(135deg, oklch(0.52 0.14 172), oklch(0.45 0.13 190))",
+            boxShadow: "0 4px 14px oklch(0.52 0.14 172 / 0.4)",
+          }}
         >
           <Sparkles className="h-4 w-4" />
-          Tutorial
+          ✨ Tutorial
         </button>
         <button
           onClick={handleLogout}
