@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Toaster } from "@/components/ui/sonner"
 import { Onboarding } from "@/components/tutorial/onboarding"
+import { TourLauncher } from "@/components/tutorial/tour-launcher"
 
 export default async function DashboardLayout({
   children,
@@ -43,6 +44,7 @@ export default async function DashboardLayout({
       </main>
       <Toaster richColors position="top-right" />
       <Onboarding userName={userName} />
+      <TourLauncher />
     </div>
   )
 }

@@ -109,6 +109,15 @@ export default function LoginPage() {
               Regístrate
             </Link>
           </p>
+          <div className="text-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-primary transition-colors"
+            >
+              <span>✨</span>
+              ¿Quieres saber cómo funciona Workie?
+            </Link>
+          </div>
         </div>
       </div>
     </div>

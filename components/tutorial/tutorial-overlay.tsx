@@ -396,11 +396,11 @@ export function TutorialOverlay({ onFinish }: { onFinish: () => void }) {
             </div>
           </div>
 
-          {/* Tip rediseñado */}
+          {/* Tip */}
           <div className="px-5 pb-4">
-            <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 px-4 py-3 flex gap-2.5">
-              <span className="text-base shrink-0 mt-px">💡</span>
-              <p className="text-amber-900 text-[0.78rem] leading-relaxed font-medium">
+            <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-4 flex gap-3">
+              <span className="text-xl shrink-0 mt-0.5">💡</span>
+              <p className="text-amber-900 text-[0.85rem] leading-relaxed font-semibold">
                 {current.tip}
               </p>
             </div>

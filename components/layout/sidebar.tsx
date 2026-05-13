@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Sparkles } from "lucide-react"
 
 const adminNav = [
   { href: "/", label: "Inicio", icon: LayoutDashboard, tour: undefined },
@@ -160,8 +161,15 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
 
       <div className="mx-4 border-t border-sidebar-border" />
 
-      {/* Cerrar sesión */}
-      <div className="p-3">
+      {/* Tutorial + Cerrar sesión */}
+      <div className="p-3 space-y-0.5">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("workie:launch-tour"))}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary/80 hover:text-primary hover:bg-sidebar-accent/60 transition-all duration-150"
+        >
+          <Sparkles className="h-4 w-4" />
+          Tutorial
+        </button>
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-all duration-150"
