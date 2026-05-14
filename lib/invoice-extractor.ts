@@ -278,32 +278,32 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // ── 6. Nombre del proveedor ───────────────────────────────
-  // Verificación de candidato válido: rechaza IDs de terminal, descripciones entre paréntesis, etc.
+  // El emisor/vendedor está SIEMPRE en la parte superior de la factura.
+  // Cortamos el texto en la primera sección de cliente/destinatario para no confundir emisor con comprador.
+  const CLIENT_KEYWORDS = /\b(cliente|bill\s+to|billing\s+address|dirección\s+de\s+(envío|facturación)|destinatario|sold\s+to|ship\s+to|facturar\s+a|datos\s+del\s+cliente)\b/i
+  const clientCutIdx = text.search(CLIENT_KEYWORDS)
+  const issuerText = clientCutIdx > 100 ? text.substring(0, clientCutIdx) : text.substring(0, Math.min(text.length, 600))
+  const issuerLines = issuerText.split("\n").map((l) => l.trim()).filter(Boolean)
+
   function isValidSupplierName(candidate: string): boolean {
     if (candidate.startsWith("(")) return false
-    // IDs de pago o terminales
     if (/ID\s+de\s+(comerciante|referencia|pago)|merchant\s+ID|payment\s+ID|reference\s+ID/i.test(candidate)) return false
     if (/IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(candidate)) return false
-    // Código alfanumérico puro sin espacios (MV7YSNCK, JsX04hIbbnshglbgxYkL)
     if (/^[A-Za-z0-9]{8,}$/.test(candidate)) return false
-    // Nombre de persona con título (Mr., Mrs., Sr., Sra., Dr.)
     if (/^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.|Miss\s)/i.test(candidate)) return false
-    // "ID de referencia del pago XXXXX" — empieza por "ID"
     if (/^ID\s/i.test(candidate)) return false
-    // Líneas que son solo descripciones de IVA o impuestos
     if (/^(IVA|IRPF|impuesto|tax)\b/i.test(candidate)) return false
     return true
   }
 
   // Forma jurídica: con puntos (S.L.) o sin puntos (SL), al inicio o al final
   const FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.A\\.?|S\\.C\\.P\\.?|C\\.B\\.?|SLU|SL|SA|SAT|CB)\\b"
-  // Estrategia A: forma jurídica al INICIO → "S.A.T. LA ZORRERA", "SL NOMBRE"
   const reFormFirst = new RegExp(`\\b((?:${FORMS})\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.]{2,50})`, "m")
-  // Estrategia B: forma jurídica al FINAL → "Xenia Enterprise SL", "Bar ejemplo S.L."
   const reFormFinal = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.]{2,50}\\s${FORMS})`, "m")
 
-  const mFirst = text.match(reFormFirst)
-  const mFinal = text.match(reFormFinal)
+  // Buscar solo en la zona del emisor (parte superior del documento)
+  const mFirst = issuerText.match(reFormFirst)
+  const mFinal = issuerText.match(reFormFinal)
 
   if (mFirst) {
     const candidate = mFirst[1].trim().replace(/\s+/g, " ")
@@ -314,22 +314,15 @@ export function extractFromText(rawText: string): InvoiceData {
     if (isValidSupplierName(candidate)) result.supplier_name = candidate
   }
   if (!result.supplier_name) {
-    // Fallback: primera línea con varias palabras en mayúsculas (nombre de empresa)
-    // Requiere al menos una letra minúscula O ser todo mayúsculas con al menos 2 palabras
-    const candidate = lines.find((l) => {
+    // Fallback: primera línea válida en la zona del emisor
+    const candidate = issuerLines.find((l) => {
       if (l.length < 5 || l.length > 60) return false
       if (!/[A-ZÁÉÍÓÚÑ]{2}/.test(l)) return false
-      const words = l.trim().split(/\s+/)
-      // Requiere al menos 2 palabras para evitar ciudades sueltas como "CADIZ"
-      if (words.length < 2) return false
+      if (l.trim().split(/\s+/).length < 2) return false
       if (/^\d/.test(l)) return false
       if (/^(factura|fecha|n[uú]mero|p[aá]g|total|base|iva|ref|tel|fax|cif|nif|ctra|carretera|avda|calle|c\/|km\b)/i.test(l)) return false
       if (/\bKM\.?\s*\d/i.test(l)) return false
       if (/\b\d{5}\b/.test(l)) return false
-      // Requiere al menos una letra minúscula O que sea TODO MAYÚSCULAS con ≥2 palabras (ya garantizado arriba)
-      const hasLower = /[a-záéíóúñ]/.test(l)
-      const isAllUpper = l === l.toUpperCase()
-      if (!hasLower && !isAllUpper) return false
       return isValidSupplierName(l)
     })
     if (candidate) result.supplier_name = candidate
