@@ -88,19 +88,42 @@ function findAmounts(amounts: number[], vatRateHint?: number): {
   return null
 }
 
-// ── Parsear fecha española a YYYY-MM-DD
+// ── Parsear fecha española/inglesa a YYYY-MM-DD
 function parseDate(s: string): string | undefined {
   const months: Record<string, string> = {
     enero: "01", febrero: "02", marzo: "03", abril: "04",
     mayo: "05", junio: "06", julio: "07", agosto: "08",
     septiembre: "09", octubre: "10", noviembre: "11", diciembre: "12",
+    january: "01", february: "02", march: "03", april: "04",
+    may: "05", june: "06", july: "07", august: "08",
+    september: "09", october: "10", november: "11", december: "12",
+    jan: "01", feb: "02", mar: "03", apr: "04",
+    jun: "06", jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
   }
-  // "12 de marzo de 2024" o "12/03/2024" etc.
-  const long = s.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i)
+
+  // "12 de marzo de 2024" o "12 de marzo 2024"
+  const long = s.match(/(\d{1,2})\s+de\s+(\w+)(?:\s+de)?\s+(\d{4})/i)
   if (long) {
     const m = months[long[2].toLowerCase()]
     if (m) return `${long[3]}-${m}-${long[1].padStart(2, "0")}`
   }
+
+  // "07 May 2026" o "7 mayo 2026" (día mes-inglés/español año)
+  const named = s.match(/(\d{1,2})\s+([A-Za-záéíóúñ]+)\s+(\d{4})/)
+  if (named) {
+    const m = months[named[2].toLowerCase()]
+    if (m) return `${named[3]}-${m}-${named[1].padStart(2, "0")}`
+  }
+
+  // "YYYY/MM/DD" — ISO con barras
+  const isoSlash = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
+  if (isoSlash) {
+    const mo = isoSlash[2].padStart(2, "0")
+    const d = isoSlash[3].padStart(2, "0")
+    if (parseInt(mo) <= 12 && parseInt(d) <= 31) return `${isoSlash[1]}-${mo}-${d}`
+  }
+
+  // "DD-MM-YYYY", "DD/MM/YYYY", "DD.MM.YYYY" — separador uniforme
   const short = s.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/)
   if (short) {
     const y = short[3].length === 2 ? `20${short[3]}` : short[3]
@@ -113,6 +136,12 @@ function parseDate(s: string): string | undefined {
   }
   return undefined
 }
+
+// Etiquetas que NO son números de factura (se cuelan como match en el regex)
+const INVOICE_NUMBER_BLACKLIST = /^(FECHA|NUMERO|NÚMERO|DATE|REF|REFERENCIA)$/i
+
+// Patrón de fracción pura tipo "0/0", "0/1", "1/2"
+const FRACTION_PATTERN = /^\d+\/\d+$/
 
 // ── Extractor principal
 export function extractFromText(rawText: string): InvoiceData {
@@ -143,6 +172,11 @@ export function extractFromText(rawText: string): InvoiceData {
     /n[uúº°]\s*\.?\s*factura[:\s]+([A-Z0-9][\w\-\/\s]{1,15}?)(?:\s{2,}|\n|$)/im,
     // "F/2024/001" o "F-001-2024"
     /\b(F[\/\-]\d{2,4}[\/\-]\d{2,6})\b/i,
+    // "Ticket nº 001" / "Recibo nº 001" / "Ref: 001" / "Receipt: 001"
+    /(?:ticket|recibo|receipt)\s+n[uúº°]?[:\s]*([A-Z0-9][\w\-\/]{1,20})/i,
+    /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
+    // "INV-xxx" o "REC-xxx"
+    /\b((?:INV|REC|FAC|FACT)[_\-][A-Z0-9][\w\-\/]{1,20})\b/i,
   ]
   for (const pat of numPatterns) {
     const m = text.match(pat)
@@ -150,6 +184,10 @@ export function extractFromText(rawText: string): InvoiceData {
       const num = m[1].trim().replace(/\s+/g, " ").replace(/\s*-\s*/g, "-")
       // Filtrar si es demasiado largo o parece una dirección
       if (num.length <= 20 && !/calle|avenida|avda|ctra/i.test(num)) {
+        // Filtrar etiquetas que se cuelan como número
+        if (INVOICE_NUMBER_BLACKLIST.test(num)) continue
+        // Filtrar fracciones puras ("0/0", "1/2", etc.)
+        if (FRACTION_PATTERN.test(num)) continue
         result.invoice_number = num
         break
       }
@@ -162,9 +200,15 @@ export function extractFromText(rawText: string): InvoiceData {
     // Específicamente la fecha de emisión de la factura
     /fecha\s+(?:factura|emisi[oó]n|expedici[oó]n)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
     /fecha\s+(?:factura|emisi[oó]n|expedici[oó]n)[:\s]*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i,
-    // "Fecha:" genérico (puede ser vencimiento si aparece antes)
+    // "Fecha:" genérico
     /fecha\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
     /fecha\s*[:\-]?\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i,
+    // "DD-MM-YYYY" con guiones (por si el fallback no lo coge)
+    /fecha\s*[:\-]?\s*(\d{1,2}-\d{1,2}-\d{4})/i,
+    // "YYYY/MM/DD"
+    /fecha\s*[:\-]?\s*(\d{4}\/\d{1,2}\/\d{1,2})/i,
+    // "07 May 2026" o "7 mayo 2026"
+    /fecha\s*[:\-]?\s*(\d{1,2}\s+[A-Za-záéíóúñ]{3,12}\s+\d{4})/i,
   ]
   for (const pat of fechaPatterns) {
     const m = text.match(pat)
@@ -175,17 +219,25 @@ export function extractFromText(rawText: string): InvoiceData {
   }
   // Fallback: buscar fechas que NO estén asociadas a vencimiento/pago
   if (!result.invoice_date) {
-    const allDateMatches = [...text.matchAll(/\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\b/g)]
-    for (const match of allDateMatches) {
-      const before = text.substring(Math.max(0, (match.index ?? 0) - 40), match.index ?? 0)
-      if (/vencimiento|vence\b|pago|cobro/i.test(before)) continue
-      const parsed = parseDate(match[1])
-      if (parsed) { result.invoice_date = parsed; break }
-    }
-    // Si todas son de vencimiento, usar la primera igualmente
-    if (!result.invoice_date && allDateMatches.length > 0) {
-      const parsed = parseDate(allDateMatches[0][1])
-      if (parsed) result.invoice_date = parsed
+    // Probar formatos extendidos: DD-MM-YYYY con guiones, YYYY/MM/DD, "07 May 2026"
+    const extPatterns = [
+      /\b(\d{4}\/\d{1,2}\/\d{1,2})\b/g,
+      /\b(\d{1,2}\s+[A-Za-záéíóúñ]{3,12}\s+\d{4})\b/g,
+      /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\b/g,
+    ]
+    outer: for (const pat of extPatterns) {
+      const allDateMatches = [...text.matchAll(pat)]
+      for (const match of allDateMatches) {
+        const before = text.substring(Math.max(0, (match.index ?? 0) - 40), match.index ?? 0)
+        if (/vencimiento|vence\b|pago|cobro/i.test(before)) continue
+        const parsed = parseDate(match[1])
+        if (parsed) { result.invoice_date = parsed; break outer }
+      }
+      // Si todas son de vencimiento, usar la primera igualmente
+      if (!result.invoice_date && allDateMatches.length > 0) {
+        const parsed = parseDate(allDateMatches[0][1])
+        if (parsed) { result.invoice_date = parsed; break }
+      }
     }
   }
 
@@ -221,6 +273,17 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // ── 6. Nombre del proveedor ───────────────────────────────
+  // Verificación de candidato válido: rechaza IDs de terminal, descripciones entre paréntesis, etc.
+  function isValidSupplierName(candidate: string): boolean {
+    // Rechazar si empieza por "("
+    if (candidate.startsWith("(")) return false
+    // Rechazar si contiene términos que indican un ID o descripción de impuesto
+    if (/ID\s+de\s+comerciante|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(candidate)) return false
+    // Rechazar si es un código alfanumérico sin espacios de más de 8 chars (ej: MV7YSNCK)
+    if (/^[A-Z0-9]{8,}$/.test(candidate)) return false
+    return true
+  }
+
   // Estrategia A: forma jurídica al INICIO → "S.A.T. LA ZORRERA", "S.L. NOMBRE"
   const reFormFirst = /\b((?:S\.A\.T|SAT|S\.A\.L|S\.L\.U|S\.L|S\.A|S\.C\.P|C\.B|CB)\.?\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{2,50})/m
   // Estrategia B: forma jurídica al FINAL → "MERCADONA S.A.", "Bar ejemplo S.L."
@@ -230,21 +293,32 @@ export function extractFromText(rawText: string): InvoiceData {
   const mFinal = text.match(reFormFinal)
 
   if (mFirst) {
-    result.supplier_name = mFirst[1].trim().replace(/\s+/g, " ")
-  } else if (mFinal) {
-    result.supplier_name = mFinal[1].trim().replace(/\s+/g, " ")
-  } else {
+    const candidate = mFirst[1].trim().replace(/\s+/g, " ")
+    if (isValidSupplierName(candidate)) result.supplier_name = candidate
+  }
+  if (!result.supplier_name && mFinal) {
+    const candidate = mFinal[1].trim().replace(/\s+/g, " ")
+    if (isValidSupplierName(candidate)) result.supplier_name = candidate
+  }
+  if (!result.supplier_name) {
     // Fallback: primera línea con varias palabras en mayúsculas (nombre de empresa)
-    const candidate = lines.find((l) =>
-      l.length >= 5 && l.length <= 60 &&
-      /[A-ZÁÉÍÓÚÑ]{2}/.test(l) &&
+    // Requiere al menos una letra minúscula O ser todo mayúsculas con al menos 2 palabras
+    const candidate = lines.find((l) => {
+      if (l.length < 5 || l.length > 60) return false
+      if (!/[A-ZÁÉÍÓÚÑ]{2}/.test(l)) return false
+      const words = l.trim().split(/\s+/)
       // Requiere al menos 2 palabras para evitar ciudades sueltas como "CADIZ"
-      l.trim().split(/\s+/).length >= 2 &&
-      !/^\d/.test(l) &&
-      !/^(factura|fecha|n[uú]mero|p[aá]g|total|base|iva|ref|tel|fax|cif|nif|ctra|carretera|avda|calle|c\/|km\b)/i.test(l) &&
-      !/\bKM\.?\s*\d/i.test(l) &&
-      !/\b\d{5}\b/.test(l)
-    )
+      if (words.length < 2) return false
+      if (/^\d/.test(l)) return false
+      if (/^(factura|fecha|n[uú]mero|p[aá]g|total|base|iva|ref|tel|fax|cif|nif|ctra|carretera|avda|calle|c\/|km\b)/i.test(l)) return false
+      if (/\bKM\.?\s*\d/i.test(l)) return false
+      if (/\b\d{5}\b/.test(l)) return false
+      // Requiere al menos una letra minúscula O que sea TODO MAYÚSCULAS con ≥2 palabras (ya garantizado arriba)
+      const hasLower = /[a-záéíóúñ]/.test(l)
+      const isAllUpper = l === l.toUpperCase()
+      if (!hasLower && !isAllUpper) return false
+      return isValidSupplierName(l)
+    })
     if (candidate) result.supplier_name = candidate
   }
 

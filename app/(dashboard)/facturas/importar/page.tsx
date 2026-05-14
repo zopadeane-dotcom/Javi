@@ -9,7 +9,7 @@ import JSZip from "jszip"
 import {
   CheckCircle, AlertCircle, Loader2, ArrowLeft, ArrowRight,
   FileText, ChevronDown, ChevronUp, Mail, HardDrive, Upload,
-  FolderOpen, X,
+  FolderOpen, X, Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,7 @@ import Link from "next/link"
 
 /* ─── Tipos ─── */
 type FileStatus = "pending" | "reading" | "done" | "error"
-type Step = "source" | "drop" | "processing" | "review" | "saving" | "done"
+type Step = "source" | "drop" | "processing" | "polishing" | "review" | "saving" | "done"
 type Source = "drive" | "gmail" | "files"
 
 interface InvoiceRow {
@@ -30,6 +30,67 @@ interface InvoiceRow {
 }
 
 const fmt = (n?: number) => n != null ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n) : "—"
+
+/* ─── Correcciones automáticas post-extracción ─── */
+
+// Etiquetas que indican que el número de factura no se extrajo correctamente
+const BAD_INVOICE_NUMBERS = new Set(["FECHA", "NUMERO", "NÚMERO", "REF", "DATE", "", "0", "0/0"])
+
+function polishRow(row: InvoiceRow): InvoiceRow {
+  const result = { ...row }
+  const fileName = row.file.name
+
+  // ── Número de factura ──────────────────────────────────────
+  const invNum = result.invoice_number?.trim() ?? ""
+  if (BAD_INVOICE_NUMBERS.has(invNum.toUpperCase()) || invNum === "") {
+    // Intento 1: patrón INV_12345 o FAC_12345 en el nombre del fichero
+    const prefixMatch = fileName.match(/\b(?:INV|FAC|FACT|REC)[_\-]([A-Z0-9][\w\-]{2,20})/i)
+    if (prefixMatch) {
+      result.invoice_number = prefixMatch[0].toUpperCase()
+    } else {
+      // Intento 2: secuencia de números en el nombre tipo "42_51_24929_20260416..."
+      // extraer el segmento numérico más largo (descartando segmentos de fecha YYYYMMDD)
+      const segments = fileName.replace(/\.[^.]+$/, "").split(/[_\-\s]+/)
+      const numericSegments = segments.filter((s) => /^\d+$/.test(s) && s.length >= 4 && s.length <= 8)
+      // Preferir segmentos que no parezcan fechas (YYYYMMDD = 8 dígitos que empiezan con 20xx)
+      const candidate = numericSegments.find((s) => !(s.length === 8 && s.startsWith("20")))
+        ?? numericSegments[0]
+      if (candidate) {
+        result.invoice_number = candidate
+      } else {
+        // Último recurso: primeros 15 caracteres alfanuméricos del nombre
+        const alnum = fileName.replace(/[^A-Z0-9]/gi, "").substring(0, 15)
+        if (alnum.length >= 3) result.invoice_number = alnum.toUpperCase()
+      }
+    }
+  }
+
+  // ── Fecha de factura ───────────────────────────────────────
+  if (!result.invoice_date) {
+    // Patrón YYYYMMDD en el nombre (ej: "20260416" → "2026-04-16")
+    const yyyymmdd = fileName.match(/\b(20\d{2})(0[1-9]|1[0-2])([0-2]\d|3[01])\b/)
+    if (yyyymmdd) {
+      result.invoice_date = `${yyyymmdd[1]}-${yyyymmdd[2]}-${yyyymmdd[3]}`
+    } else {
+      // Patrón YYYY-MM-DD en el nombre
+      const isoDate = fileName.match(/\b(20\d{2})[-_](0[1-9]|1[0-2])[-_]([0-2]\d|3[01])\b/)
+      if (isoDate) {
+        result.invoice_date = `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`
+      }
+    }
+  }
+
+  // ── Nombre de proveedor ────────────────────────────────────
+  const supplierName = result.supplier_name ?? ""
+  if (
+    supplierName.startsWith("(") ||
+    /ID\s+de\s+comerciante|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(supplierName)
+  ) {
+    result.supplier_name = undefined
+  }
+
+  return result
+}
 
 /* ─── Instrucciones por fuente ─── */
 const SOURCES = {
@@ -86,6 +147,7 @@ export default function ImportarFacturasPage() {
   const [dragging, setDragging] = useState(false)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
   const [savingProgress, setSavingProgress] = useState(0)
+  const [polishProgress, setPolishProgress] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const folderRef = useRef<HTMLInputElement>(null)
   const zipRef = useRef<HTMLInputElement>(null)
@@ -113,6 +175,19 @@ export default function ImportarFacturasPage() {
       }
     }
     return result
+  }
+
+  async function startPolishing(rawRows: InvoiceRow[]) {
+    setStep("polishing")
+    setPolishProgress(0)
+    const polished = [...rawRows]
+    for (let i = 0; i < polished.length; i++) {
+      polished[i] = polishRow(polished[i])
+      setRows([...polished])
+      setPolishProgress(Math.round(((i + 1) / polished.length) * 100))
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    setStep("review")
   }
 
   async function startProcessing(files: File[]) {
@@ -152,7 +227,8 @@ export default function ImportarFacturasPage() {
       setRows([...updated])
       await new Promise((r) => setTimeout(r, 60))
     }
-    setStep("review")
+    // Ir al paso de pulido antes de la revisión
+    await startPolishing(updated)
   }
 
   const updateRow = useCallback((id: string, changes: Partial<InvoiceRow>) => {
@@ -379,6 +455,34 @@ export default function ImportarFacturasPage() {
             <div className="rounded-full bg-muted h-2.5 overflow-hidden">
               <div className="h-full bg-primary transition-all rounded-full"
                 style={{ width: `${(rows.filter((r) => r.status !== "pending" && r.status !== "reading").length / rows.length) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PULIENDO ── */}
+      {step === "polishing" && (
+        <div className="rounded-3xl border bg-card p-10 text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="relative h-20 w-20">
+              <div className="absolute inset-0 rounded-full bg-violet-100 dark:bg-violet-900/40 animate-pulse" />
+              <Sparkles className="absolute inset-0 m-auto h-10 w-10 text-violet-500" />
+            </div>
+          </div>
+          <div>
+            <h2 className="font-bold text-xl">Puliendo los detalles...</h2>
+            <p className="text-muted-foreground text-sm mt-1">Completando lo que falta en cada factura</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{Math.round((polishProgress / 100) * rows.length)} de {rows.length} revisadas</span>
+              <span>{polishProgress}%</span>
+            </div>
+            <div className="rounded-full bg-muted h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-violet-500 to-purple-600 transition-all rounded-full"
+                style={{ width: `${polishProgress}%` }}
+              />
             </div>
           </div>
         </div>
