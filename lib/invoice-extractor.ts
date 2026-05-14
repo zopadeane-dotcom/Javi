@@ -166,8 +166,9 @@ export function extractFromText(rawText: string): InvoiceData {
   // Patrones muy permisivos para cualquier formato español
   const numPatterns = [
     // "Factura nº C26 32" o "Factura nº 2024/001"
-    /factura\s+n[uúº°]?[:\s]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
-    // "Factura C26-32" o "Factura C26 32" (con o sin nº, número con espacio o guión)
+    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
+    // "Factura #F26/0784" o "Factura C26-32"
+    /factura\s*[:\s]*#\s*([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     // "Fra. nº 001"
     /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{1,15}?)(?:\s{2,}|\n|$)/im,
@@ -294,10 +295,12 @@ export function extractFromText(rawText: string): InvoiceData {
     return true
   }
 
-  // Estrategia A: forma jurídica al INICIO → "S.A.T. LA ZORRERA", "S.L. NOMBRE"
-  const reFormFirst = /\b((?:S\.A\.T|SAT|S\.A\.L|S\.L\.U|S\.L|S\.A|S\.C\.P|C\.B|CB)\.?\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{2,50})/m
-  // Estrategia B: forma jurídica al FINAL → "MERCADONA S.A.", "Bar ejemplo S.L."
-  const reFormFinal = /([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{2,50}\s(?:S\.A\.T|S\.A\.L|S\.L\.U|S\.L|S\.A|S\.C\.P|C\.B|CB)\.?)\b/m
+  // Forma jurídica: con puntos (S.L.) o sin puntos (SL), al inicio o al final
+  const FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.A\\.?|S\\.C\\.P\\.?|C\\.B\\.?|SLU|SL|SA|SAT|CB)\\b"
+  // Estrategia A: forma jurídica al INICIO → "S.A.T. LA ZORRERA", "SL NOMBRE"
+  const reFormFirst = new RegExp(`\\b((?:${FORMS})\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.]{2,50})`, "m")
+  // Estrategia B: forma jurídica al FINAL → "Xenia Enterprise SL", "Bar ejemplo S.L."
+  const reFormFinal = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.]{2,50}\\s${FORMS})`, "m")
 
   const mFirst = text.match(reFormFirst)
   const mFinal = text.match(reFormFinal)
