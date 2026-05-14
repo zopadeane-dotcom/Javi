@@ -118,6 +118,65 @@ export function extractFromText(rawText: string): InvoiceData {
   const result: InvoiceData = {}
 
   // ════════════════════════════════════════════════════════
+  // MODO AMAZON — detectado por presencia de "amazon" en el texto
+  // Estructura especial: datos del vendedor en "Vendido por",
+  // número y fecha en cuadro superior, NIF con prefijo EU (ESWxxxxxxx)
+  // ════════════════════════════════════════════════════════
+  if (/amazon/i.test(text)) {
+    // Nº factura: "Número de la factura  ES6DMF6ABEI"
+    const numM = text.match(/n[uú]mero\s+de\s+la\s+factura\s+([A-Z0-9\-]+)/i)
+    if (numM) result.invoice_number = numM[1].trim()
+
+    // Fecha: "Fecha de la factura/Fecha de la entrega  01 marzo 2026"
+    const dateM = text.match(/fecha\s+de\s+la\s+factura[^\n]{0,40}\n?\s*(\d{1,2}\s+\w+\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i)
+    if (dateM) result.invoice_date = parseDate(dateM[1].trim())
+
+    // Proveedor: línea debajo de "Vendido por"
+    const vendidoM = text.match(/vendido\s+por\s*\n?\s*([^\n]{5,80})/i)
+    if (vendidoM) {
+      const name = vendidoM[1].trim().replace(/\s+/g, " ")
+      if (!/^joanna|^juan|^maria|^jose/i.test(name)) // excluir nombres de persona
+        result.supplier_name = name
+    }
+
+    // NIF del vendedor: "IVA ESW0264006H" (formato EU: 2 letras país + NIF)
+    const vatNumM = text.match(/\bIVA\s+(ES[A-Z0-9]{8,10})\b/gi)
+    if (vatNumM) {
+      // El último suele ser el del vendedor (Amazon), no el del comprador
+      result.supplier_nif = vatNumM[vatNumM.length - 1].replace(/^IVA\s+/i, "")
+    }
+
+    // Total: "Total pendiente  22,87 €"
+    const totalM = text.match(/total\s+pendiente\s+([0-9.,]+)\s*€/i)
+    if (totalM) result.total_amount = parseNum(totalM[1])
+
+    // Base: precio IVA excluido en la tabla de productos
+    const baseM = text.match(/\(\s*IVA\s+exclu[ií]do\s*\)[^\n]*\n[\s\S]{0,200}?(\d+,\d{2})\s*€/i)
+      ?? text.match(/(\d+,\d{2})\s*€\s*\n?\s*\d+[.,]\d+\s*%/i)
+    if (baseM) result.base_amount = parseNum(baseM[1])
+
+    // IVA %: porcentaje en tabla "21.0%"
+    const vatPctM = text.match(/(\d+)[.,]\d*\s*%\s*(?:\n|€|\s+\d)/i)
+    if (vatPctM) {
+      const r = parseInt(vatPctM[1])
+      if ([0, 4, 10, 21].includes(r)) result.vat_rate = r
+    }
+
+    // Si tenemos total y base, calcular IVA
+    if (result.total_amount && result.base_amount && !result.vat_amount) {
+      result.vat_amount = parseFloat((result.total_amount - result.base_amount).toFixed(2))
+    }
+
+    // Concepto: descripción del producto
+    const descM = text.match(/Descripci[oó]n\s*\n\s*(.{5,100})/i)
+    if (descM) result.concept = descM[1].trim()
+
+    // Si tenemos suficiente, devolver ya sin pasar por el extractor genérico
+    if (result.invoice_number && result.invoice_date && result.total_amount)
+      return result
+  }
+
+  // ════════════════════════════════════════════════════════
   // 1. NIF/CIF del emisor
   //    RD 1619/2012 art.6: obligatorio el NIF del expedidor
   // ════════════════════════════════════════════════════════
