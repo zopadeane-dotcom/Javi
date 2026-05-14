@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { createInvoice } from "@/lib/actions/invoices"
+import { createInvoice, createSupplier } from "@/lib/actions/invoices"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,11 +46,9 @@ export default function NuevaFacturaPage() {
   const [fieldsFound, setFieldsFound] = useState(0)
   const [debugText, setDebugText] = useState<string | null>(null)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
-  const [suppliersLoaded, setSuppliersLoaded] = useState(false)
   const [showProveedorModal, setShowProveedorModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
   const [extractedSupplier, setExtractedSupplier] = useState<{ name?: string; nif?: string } | null>(null)
-  const [pendingSupplierName, setPendingSupplierName] = useState<{ name: string; nif?: string } | null>(null)
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -63,37 +61,46 @@ export default function NuevaFacturaPage() {
   const total = parseFloat((baseAmount + vat).toFixed(2))
 
   useEffect(() => {
-    createClient().from("suppliers").select("id, name").order("name").then(({ data }) => {
-      setSuppliers(data ?? [])
-      setSuppliersLoaded(true)
-    })
+    createClient().from("suppliers").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []))
   }, [])
 
-  // Cuando los proveedores cargan, intentar auto-emparejar el nombre extraído del PDF
-  useEffect(() => {
-    if (!suppliersLoaded || !pendingSupplierName) return
-    const nameLower = pendingSupplierName.name.toLowerCase()
-    const matched = suppliers.find((s) => {
+  function handleSupplierCreated(s: { id: string; name: string }) {
+    setSuppliers((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)))
+    setSelectedSupplierId(s.id)
+    setValue("supplier_id", s.id)
+  }
+
+  async function autoSelectOrCreateSupplier(name: string, nif?: string): Promise<boolean> {
+    // Primero refrescar la lista actualizada desde BD
+    const { data: fresh } = await createClient().from("suppliers").select("id, name").order("name")
+    const list = fresh ?? []
+    setSuppliers(list)
+
+    const nameLower = name.toLowerCase()
+    const matched = list.find((s) => {
       const sLower = s.name.toLowerCase()
       return sLower === nameLower || sLower.includes(nameLower) || nameLower.includes(sLower)
     })
+
     if (matched) {
       setSelectedSupplierId(matched.id)
       setValue("supplier_id", matched.id)
-      setFieldsFound((prev) => prev + 1)
-    } else {
-      setExtractedSupplier({ name: pendingSupplierName.name, nif: pendingSupplierName.nif })
-      setShowProveedorModal(true)
+      return true
     }
-    setPendingSupplierName(null)
-  }, [suppliersLoaded, pendingSupplierName])  // eslint-disable-line
 
-  async function handleSupplierCreated(s: { id: string; name: string }) {
-    // Recargar lista completa desde BD para que el Select muestre el nombre correctamente
-    const { data } = await createClient().from("suppliers").select("id, name").order("name")
-    setSuppliers(data ?? [...suppliers, s])
-    setSelectedSupplierId(s.id)
-    setValue("supplier_id", s.id)
+    // No existe → crearlo automáticamente
+    const fd = new FormData()
+    fd.append("name", name)
+    if (nif) fd.append("nif", nif)
+    const result = await createSupplier(fd)
+    if (!result?.error && result?.id) {
+      const newSupplier = { id: result.id as string, name }
+      setSuppliers((prev) => [...prev, newSupplier].sort((a, b) => a.name.localeCompare(b.name)))
+      setSelectedSupplierId(newSupplier.id)
+      setValue("supplier_id", newSupplier.id)
+      return true
+    }
+    return false
   }
 
   async function handleFileReady(file: File | null) {
@@ -128,25 +135,10 @@ export default function NuevaFacturaPage() {
         if (d.vat_rate) { setValue("vat_rate", d.vat_rate); found++ }
         if (d.concept) { setValue("concept", d.concept); found++ }
 
-        // Proveedor: si los datos ya cargaron, emparejar ahora; si no, encolar para cuando carguen
+        // Proveedor: seleccionar si existe, o crear automáticamente
         if (d.supplier_name) {
-          if (suppliersLoaded) {
-            const nameLower = d.supplier_name.toLowerCase()
-            const matched = suppliers.find((s) => {
-              const sLower = s.name.toLowerCase()
-              return sLower === nameLower || sLower.includes(nameLower) || nameLower.includes(sLower)
-            })
-            if (matched) {
-              setSelectedSupplierId(matched.id)
-              setValue("supplier_id", matched.id)
-              found++
-            } else {
-              setExtractedSupplier({ name: d.supplier_name, nif: d.supplier_nif })
-              setShowProveedorModal(true)
-            }
-          } else {
-            setPendingSupplierName({ name: d.supplier_name, nif: d.supplier_nif })
-          }
+          const ok = await autoSelectOrCreateSupplier(d.supplier_name, d.supplier_nif)
+          if (ok) found++
         }
 
         setFieldsFound(found)
