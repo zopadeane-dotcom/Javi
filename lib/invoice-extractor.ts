@@ -123,19 +123,20 @@ export function extractFromText(rawText: string): InvoiceData {
   // número y fecha en cuadro superior, NIF con prefijo EU (ESWxxxxxxx)
   // ════════════════════════════════════════════════════════
   if (/amazon/i.test(text)) {
-    // Nº factura: "Número de la factura  ES6DMF6ABEI"
-    const numM = text.match(/n[uú]mero\s+de\s+la\s+factura\s+([A-Z0-9\-]+)/i)
+    // Nº factura — puede estar en la misma línea o en la siguiente
+    const numM = text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,10}?([A-Z0-9][A-Z0-9\-]{4,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
 
-    // Fecha: "Fecha de la factura/Fecha de la entrega  01 marzo 2026"
-    const dateM = text.match(/fecha\s+de\s+la\s+factura[^\n]{0,40}\n?\s*(\d{1,2}\s+\w+\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i)
+    // Fecha — misma línea o siguiente
+    const dateM = text.match(/fecha\s+de\s+la\s+factura[\s\S]{0,50}?(\d{1,2}\s+\w+\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i)
     if (dateM) result.invoice_date = parseDate(dateM[1].trim())
 
-    // Proveedor: línea debajo de "Vendido por"
-    const vendidoM = text.match(/vendido\s+por\s*\n?\s*([^\n]{5,80})/i)
+    // Proveedor: línea debajo de "Vendido por" — sin filtrar aunque sea largo sin espacios
+    const vendidoM = text.match(/vendido\s+por\s*\n?\s*([^\n]{3,100})/i)
     if (vendidoM) {
       const name = vendidoM[1].trim().replace(/\s+/g, " ")
-      if (!/^joanna|^juan|^maria|^jose/i.test(name)) // excluir nombres de persona
+      // Solo excluir si es claramente el nombre del comprador o una URL
+      if (!/^(joanna|juan|maria|jose|pedro)\b/i.test(name) && !/@/.test(name))
         result.supplier_name = name
     }
 
