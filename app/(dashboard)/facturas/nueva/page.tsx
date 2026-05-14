@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, ArrowRight, Sparkles, CheckCircle, AlertCircle, RotateCcw, Plus } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle, RotateCcw, Plus } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { NuevoProveedorModal } from "@/components/facturas/nuevo-proveedor-modal"
@@ -30,19 +30,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-type Step = "upload" | "extracting" | "review"
-
-interface Extracted {
-  supplier_name?: string
-  supplier_nif?: string
-  invoice_number?: string
-  invoice_date?: string
-  base_amount?: number
-  vat_rate?: number
-  vat_amount?: number
-  total_amount?: number
-  concept?: string
-}
+type Step = "upload" | "review"
 
 const fmt = (n: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
 
@@ -50,8 +38,6 @@ export default function NuevaFacturaPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>("upload")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-  const [extracted, setExtracted] = useState<Extracted | null>(null)
-  const [hasAI, setHasAI] = useState(true)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
   const [showProveedorModal, setShowProveedorModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
@@ -76,55 +62,11 @@ export default function NuevaFacturaPage() {
     setValue("supplier_id", s.id)
   }
 
-  async function handleFileReady(file: File | null) {
+  function handleFileReady(file: File | null) {
     setUploadedFile(file)
     if (!file) return
-
-    setStep("extracting")
-
-    try {
-      const fd = new FormData()
-      fd.append("file", file)
-      const resp = await fetch("/api/extract-invoice", { method: "POST", body: fd })
-      const json = await resp.json()
-
-      if (json.error === "no_api_key") {
-        setHasAI(false)
-        setStep("review")
-        return
-      }
-
-      if (json.success && json.data) {
-        const d = json.data as Extracted
-        setExtracted(d)
-
-        // Rellenar el formulario automáticamente
-        if (d.invoice_number) setValue("invoice_number", d.invoice_number)
-        if (d.invoice_date) setValue("invoice_date", d.invoice_date)
-        if (d.base_amount) setValue("base_amount", d.base_amount)
-        if (d.vat_rate) setValue("vat_rate", d.vat_rate)
-        if (d.concept) setValue("concept", d.concept)
-
-        // Buscar el proveedor existente o marcarlo como nuevo
-        if (d.supplier_name) {
-          const found = suppliers.find((s) =>
-            s.name.toLowerCase().includes(d.supplier_name!.toLowerCase()) ||
-            d.supplier_name!.toLowerCase().includes(s.name.toLowerCase())
-          )
-          if (found) {
-            setSelectedSupplierId(found.id)
-            setValue("supplier_id", found.id)
-          }
-        }
-        setStep("review")
-      } else {
-        toast.error("No se pudo leer la factura automáticamente. Rellena los datos a mano.")
-        setStep("review")
-      }
-    } catch {
-      toast.error("Error al procesar la factura.")
-      setStep("review")
-    }
+    // Ir directo al formulario con el archivo ya adjunto
+    setStep("review")
   }
 
   async function onSubmit(data: FormData) {
@@ -159,42 +101,41 @@ export default function NuevaFacturaPage() {
         {/* Steps indicator */}
         <div className="flex items-center gap-2">
           {[
-            { id: "upload", label: "1. Subir" },
-            { id: "extracting", label: "2. IA lee" },
-            { id: "review", label: "3. Revisar" },
+            { id: "upload", label: "1. Adjuntar" },
+            { id: "review", label: "2. Rellenar" },
           ].map((s, i) => (
             <div key={s.id} className="flex items-center gap-2">
               <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all ${
                 step === s.id
                   ? "bg-primary text-primary-foreground"
-                  : ["upload", "extracting", "review"].indexOf(step) > i
+                  : step === "review" && i === 0
                   ? "bg-primary/20 text-primary"
                   : "bg-muted text-muted-foreground"
               }`}>
-                {["upload", "extracting", "review"].indexOf(step) > i
+                {step === "review" && i === 0
                   ? <CheckCircle className="h-3 w-3" />
                   : <span>{i + 1}</span>
                 }
                 {s.label.split(". ")[1]}
               </div>
-              {i < 2 && <div className="h-px w-4 bg-border" />}
+              {i < 1 && <div className="h-px w-4 bg-border" />}
             </div>
           ))}
         </div>
 
-        {/* ── PASO 1: SUBIR ── */}
+        {/* ── PASO 1: ADJUNTAR ── */}
         {step === "upload" && (
           <div className="rounded-3xl border bg-card p-6 space-y-5">
             <div className="text-center space-y-2">
               <div className="flex justify-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                  <Sparkles className="h-7 w-7 text-primary" />
+                  <ArrowRight className="h-7 w-7 text-primary" />
                 </div>
               </div>
-              <h2 className="font-bold text-lg">Sube tu factura</h2>
+              <h2 className="font-bold text-lg">Adjunta la factura</h2>
               <p className="text-muted-foreground text-sm">
-                La IA leerá el PDF o la foto y rellenará todos los campos automáticamente.<br />
-                Solo tendrás que revisar y confirmar.
+                Sube el PDF o una foto de la factura.<br />
+                Luego rellenas los datos y queda todo guardado.
               </p>
             </div>
             <FileUploadZone onFileReady={handleFileReady} />
@@ -203,27 +144,8 @@ export default function NuevaFacturaPage() {
               onClick={() => setStep("review")}
               className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
             >
-              Prefiero rellenar a mano →
+              Sin archivo, rellenar solo los datos →
             </button>
-          </div>
-        )}
-
-        {/* ── PASO 2: EXTRAYENDO ── */}
-        {step === "extracting" && (
-          <div className="rounded-3xl border bg-card p-10 text-center space-y-5">
-            <div className="flex justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-ping" />
-                <div className="absolute inset-2 rounded-full border-4 border-primary/40 animate-spin" style={{ animationDuration: "2s" }} />
-                <Sparkles className="h-8 w-8 text-primary" />
-              </div>
-            </div>
-            <div>
-              <h2 className="font-bold text-lg">La IA está leyendo tu factura...</h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                Extrayendo proveedor, importes, IVA y fecha automáticamente.
-              </p>
-            </div>
           </div>
         )}
 
@@ -231,36 +153,17 @@ export default function NuevaFacturaPage() {
         {step === "review" && (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-            {/* Banner IA */}
-            {extracted && hasAI && (
-              <div className="rounded-2xl bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-primary">¡La IA ha rellenado los datos!</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Revisa que todo sea correcto antes de guardar.</p>
+            {/* Indicador de archivo adjunto */}
+            {uploadedFile && (
+              <div className="rounded-2xl bg-primary/5 border border-primary/20 px-4 py-3 flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-primary">Archivo adjunto listo</p>
+                  <p className="text-xs text-muted-foreground truncate">{uploadedFile.name}</p>
                 </div>
-                <button type="button" onClick={() => setStep("upload")} className="ml-auto text-muted-foreground hover:text-foreground">
+                <button type="button" onClick={() => setStep("upload")} className="text-muted-foreground hover:text-foreground">
                   <RotateCcw className="h-4 w-4" />
                 </button>
-              </div>
-            )}
-
-            {!hasAI && (
-              <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
-                  La extracción automática no está activada aún. Rellena los datos manualmente.{" "}
-                  <span className="font-semibold">Añade tu clave de Anthropic para activar la IA.</span>
-                </p>
-              </div>
-            )}
-
-            {/* Datos extraídos del proveedor (info) */}
-            {extracted?.supplier_name && (
-              <div className="rounded-2xl bg-muted/40 border px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos detectados del emisor</p>
-                <p className="text-sm font-semibold">{extracted.supplier_name}</p>
-                {extracted.supplier_nif && <p className="text-xs text-muted-foreground font-mono">NIF: {extracted.supplier_nif}</p>}
               </div>
             )}
 
@@ -275,7 +178,7 @@ export default function NuevaFacturaPage() {
                     onValueChange={(v) => { if (v) { setSelectedSupplierId(v as string); setValue("supplier_id", v as string) } }}
                   >
                     <SelectTrigger className="flex-1">
-                      <SelectValue placeholder={extracted?.supplier_name ? `Buscar "${extracted.supplier_name}"...` : "Selecciona un proveedor..."} />
+                      <SelectValue placeholder="Selecciona un proveedor..." />
                     </SelectTrigger>
                     <SelectContent>
                       {suppliers.map((s) => (
@@ -315,7 +218,7 @@ export default function NuevaFacturaPage() {
                 <div className="space-y-1.5">
                   <Label>IVA *</Label>
                   <Select
-                    defaultValue={String(extracted?.vat_rate ?? 10)}
+                    defaultValue="10"
                     value={String(vatRate)}
                     onValueChange={(v) => { if (v) setValue("vat_rate", parseFloat(v as string)) }}
                   >
