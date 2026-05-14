@@ -48,6 +48,7 @@ export default function NuevaFacturaPage() {
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
   const [showProveedorModal, setShowProveedorModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
+  const [extractedSupplier, setExtractedSupplier] = useState<{ name?: string; nif?: string } | null>(null)
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -102,15 +103,22 @@ export default function NuevaFacturaPage() {
         if (d.concept) { setValue("concept", d.concept); found++ }
 
         // Intentar encontrar el proveedor en la lista
-        if (d.supplier_name && suppliers.length > 0) {
-          const found_supplier = suppliers.find((s) =>
-            s.name.toLowerCase().includes(d.supplier_name.toLowerCase().split(" ")[0]) ||
-            d.supplier_name.toLowerCase().includes(s.name.toLowerCase().split(" ")[0])
-          )
-          if (found_supplier) {
-            setSelectedSupplierId(found_supplier.id)
-            setValue("supplier_id", found_supplier.id)
+        if (d.supplier_name) {
+          const nameLower = d.supplier_name.toLowerCase()
+          const matched = suppliers.find((s) => {
+            const sLower = s.name.toLowerCase()
+            return sLower === nameLower ||
+              sLower.includes(nameLower) ||
+              nameLower.includes(sLower)
+          })
+          if (matched) {
+            setSelectedSupplierId(matched.id)
+            setValue("supplier_id", matched.id)
             found++
+          } else {
+            // No existe aún: abrir modal con el nombre pre-rellenado
+            setExtractedSupplier({ name: d.supplier_name, nif: d.supplier_nif })
+            setShowProveedorModal(true)
           }
         }
 
@@ -144,7 +152,12 @@ export default function NuevaFacturaPage() {
   return (
     <>
       {showProveedorModal && (
-        <NuevoProveedorModal onCreated={handleSupplierCreated} onClose={() => setShowProveedorModal(false)} />
+        <NuevoProveedorModal
+          onCreated={handleSupplierCreated}
+          onClose={() => setShowProveedorModal(false)}
+          defaultName={extractedSupplier?.name}
+          defaultNif={extractedSupplier?.nif}
+        />
       )}
 
       <div className="max-w-2xl mx-auto space-y-6">

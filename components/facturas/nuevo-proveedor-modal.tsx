@@ -11,9 +11,11 @@ import { X, Building2 } from "lucide-react"
 interface Props {
   onCreated: (supplier: { id: string; name: string }) => void
   onClose: () => void
+  defaultName?: string
+  defaultNif?: string
 }
 
-export function NuevoProveedorModal({ onCreated, onClose }: Props) {
+export function NuevoProveedorModal({ onCreated, onClose, defaultName, defaultNif }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -50,11 +52,11 @@ export function NuevoProveedorModal({ onCreated, onClose }: Props) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="p-name">Nombre *</Label>
-            <Input id="p-name" name="name" placeholder="Makro España S.A." required />
+            <Input id="p-name" name="name" placeholder="Makro España S.A." required defaultValue={defaultName} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="p-nif">NIF / CIF</Label>
-            <Input id="p-nif" name="nif" placeholder="A12345678" />
+            <Input id="p-nif" name="nif" placeholder="A12345678" defaultValue={defaultNif} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
