@@ -58,32 +58,17 @@ export default async function Modelo303Page({
   const hasInvoices = invoices.length > 0
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="flex gap-8 items-start">
+
+      {/* Contenido principal */}
+      <div className="flex-1 min-w-0 space-y-8">
 
       {/* Cabecera */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="pt-1">
-          <h1 className="text-2xl font-bold">Modelo 303</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            IVA soportado · Declaración trimestral AEAT
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Años</p>
-          {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
-            <Link
-              key={y}
-              href={`?year=${y}`}
-              className={`flex items-center justify-center w-24 rounded-2xl py-2.5 text-2xl font-black tabular-nums transition-all duration-150 ${
-                y === year
-                  ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
-                  : "bg-primary/10 text-primary/40 hover:bg-primary/20 hover:text-primary/70"
-              }`}
-            >
-              {y}
-            </Link>
-          ))}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Modelo 303</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          IVA soportado · Declaración trimestral AEAT
+        </p>
       </div>
 
       {/* Guía rápida */}
@@ -206,6 +191,27 @@ export default async function Modelo303Page({
           El Modelo 303 también requiere el IVA repercutido (ventas). Consulta siempre con tu asesor fiscal.
         </p>
       </div>
+
+      </div>{/* fin contenido principal */}
+
+      {/* Años — columna derecha pegada al borde */}
+      <div className="flex flex-col items-center gap-2 shrink-0 sticky top-6">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Años</p>
+        {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
+          <Link
+            key={y}
+            href={`?year=${y}`}
+            className={`flex items-center justify-center w-28 rounded-2xl py-3 text-2xl font-black tabular-nums transition-all duration-150 ${
+              y === year
+                ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
+                : "bg-primary/10 text-primary/40 hover:bg-primary/20 hover:text-primary/70"
+            }`}
+          >
+            {y}
+          </Link>
+        ))}
+      </div>
+
     </div>
   )
 }
