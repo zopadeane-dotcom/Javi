@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import Link from "next/link"
-import { Plus, FileText } from "lucide-react"
+import { Plus, FileText, FolderOpen } from "lucide-react"
 
 function formatEur(n: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
@@ -52,10 +52,16 @@ export default async function FacturasPage({
           <h1 className="text-2xl font-bold">Facturas</h1>
           <p className="text-muted-foreground text-sm">Facturas de proveedores — {year}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <AutomationButton />
           <Button variant="outline" asChild>
             <Link href="/facturas/modelo-303">Modelo 303</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/facturas/importar">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Importar carpeta
+            </Link>
           </Button>
           <Button asChild>
             <Link href="/facturas/nueva">
