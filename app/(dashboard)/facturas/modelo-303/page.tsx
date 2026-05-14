@@ -27,6 +27,14 @@ export default async function Modelo303Page({
   const year = parseInt(params.year ?? String(new Date().getFullYear()))
   const currentYear = new Date().getFullYear()
 
+  // Años con facturas + año actual siempre visible
+  const { data: yearsWithData } = await supabase
+    .from("invoices")
+    .select("year")
+    .eq("business_id", profile.business_id!)
+  const availableYears = [...new Set([currentYear, ...(yearsWithData?.map((i: any) => i.year) ?? [])])]
+    .sort((a, b) => b - a)
+
   const { data: invoicesRaw } = await supabase
     .from("invoices")
     .select("base_amount, vat_amount, vat_rate, is_deductible, quarter")
@@ -197,7 +205,7 @@ export default async function Modelo303Page({
       {/* Años — columna derecha pegada al borde */}
       <div className="flex flex-col items-center gap-2 shrink-0 sticky top-6">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Años</p>
-        {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
+        {availableYears.map((y) => (
           <Link
             key={y}
             href={`?year=${y}`}
