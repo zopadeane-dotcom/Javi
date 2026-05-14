@@ -137,11 +137,14 @@ function parseDate(s: string): string | undefined {
   return undefined
 }
 
-// Etiquetas que NO son números de factura (se cuelan como match en el regex)
-const INVOICE_NUMBER_BLACKLIST = /^(FECHA|NUMERO|NÚMERO|DATE|REF|REFERENCIA)$/i
+// Etiquetas que NO son números de factura
+const INVOICE_NUMBER_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.)$/i
 
 // Patrón de fracción pura tipo "0/0", "0/1", "1/2"
 const FRACTION_PATTERN = /^\d+\/\d+$/
+
+// Números de factura que empiezan por palabras que son claramente etiquetas
+const INVOICE_NUMBER_BAD_START = /^(FECHA|MR\.|MRS\.|SR\.|DR\.|ID\s)/i
 
 // ── Extractor principal
 export function extractFromText(rawText: string): InvoiceData {
@@ -186,6 +189,7 @@ export function extractFromText(rawText: string): InvoiceData {
       if (num.length <= 20 && !/calle|avenida|avda|ctra/i.test(num)) {
         // Filtrar etiquetas que se cuelan como número
         if (INVOICE_NUMBER_BLACKLIST.test(num)) continue
+        if (INVOICE_NUMBER_BAD_START.test(num)) continue
         // Filtrar fracciones puras ("0/0", "1/2", etc.)
         if (FRACTION_PATTERN.test(num)) continue
         result.invoice_number = num
@@ -275,12 +279,18 @@ export function extractFromText(rawText: string): InvoiceData {
   // ── 6. Nombre del proveedor ───────────────────────────────
   // Verificación de candidato válido: rechaza IDs de terminal, descripciones entre paréntesis, etc.
   function isValidSupplierName(candidate: string): boolean {
-    // Rechazar si empieza por "("
     if (candidate.startsWith("(")) return false
-    // Rechazar si contiene términos que indican un ID o descripción de impuesto
-    if (/ID\s+de\s+comerciante|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(candidate)) return false
-    // Rechazar si es un código alfanumérico sin espacios de más de 8 chars (ej: MV7YSNCK)
-    if (/^[A-Z0-9]{8,}$/.test(candidate)) return false
+    // IDs de pago o terminales
+    if (/ID\s+de\s+(comerciante|referencia|pago)|merchant\s+ID|payment\s+ID|reference\s+ID/i.test(candidate)) return false
+    if (/IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(candidate)) return false
+    // Código alfanumérico puro sin espacios (MV7YSNCK, JsX04hIbbnshglbgxYkL)
+    if (/^[A-Za-z0-9]{8,}$/.test(candidate)) return false
+    // Nombre de persona con título (Mr., Mrs., Sr., Sra., Dr.)
+    if (/^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.|Miss\s)/i.test(candidate)) return false
+    // "ID de referencia del pago XXXXX" — empieza por "ID"
+    if (/^ID\s/i.test(candidate)) return false
+    // Líneas que son solo descripciones de IVA o impuestos
+    if (/^(IVA|IRPF|impuesto|tax)\b/i.test(candidate)) return false
     return true
   }
 

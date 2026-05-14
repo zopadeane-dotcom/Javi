@@ -84,9 +84,18 @@ function polishRow(row: InvoiceRow): InvoiceRow {
   const supplierName = result.supplier_name ?? ""
   if (
     supplierName.startsWith("(") ||
-    /ID\s+de\s+comerciante|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(supplierName)
+    /^ID\s/i.test(supplierName) ||
+    /ID\s+de\s+(comerciante|referencia|pago)|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(supplierName) ||
+    /^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.)/i.test(supplierName) ||
+    /^[A-Za-z0-9]{8,}$/.test(supplierName)
   ) {
     result.supplier_name = undefined
+  }
+
+  // ── Número de factura inválido ─────────────────────────────
+  const invNum = result.invoice_number ?? ""
+  if (/^(FECHA|MR\.|SR\.|ID\s)/i.test(invNum) || /^\d+\/\d+$/.test(invNum)) {
+    result.invoice_number = undefined
   }
 
   return result
