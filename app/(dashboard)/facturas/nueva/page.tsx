@@ -46,9 +46,11 @@ export default function NuevaFacturaPage() {
   const [fieldsFound, setFieldsFound] = useState(0)
   const [debugText, setDebugText] = useState<string | null>(null)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
+  const [suppliersLoaded, setSuppliersLoaded] = useState(false)
   const [showProveedorModal, setShowProveedorModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
   const [extractedSupplier, setExtractedSupplier] = useState<{ name?: string; nif?: string } | null>(null)
+  const [pendingSupplierName, setPendingSupplierName] = useState<{ name: string; nif?: string } | null>(null)
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -61,11 +63,35 @@ export default function NuevaFacturaPage() {
   const total = parseFloat((baseAmount + vat).toFixed(2))
 
   useEffect(() => {
-    createClient().from("suppliers").select("id, name").order("name").then(({ data }) => setSuppliers(data ?? []))
+    createClient().from("suppliers").select("id, name").order("name").then(({ data }) => {
+      setSuppliers(data ?? [])
+      setSuppliersLoaded(true)
+    })
   }, [])
 
-  function handleSupplierCreated(s: { id: string; name: string }) {
-    setSuppliers((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)))
+  // Cuando los proveedores cargan, intentar auto-emparejar el nombre extraído del PDF
+  useEffect(() => {
+    if (!suppliersLoaded || !pendingSupplierName) return
+    const nameLower = pendingSupplierName.name.toLowerCase()
+    const matched = suppliers.find((s) => {
+      const sLower = s.name.toLowerCase()
+      return sLower === nameLower || sLower.includes(nameLower) || nameLower.includes(sLower)
+    })
+    if (matched) {
+      setSelectedSupplierId(matched.id)
+      setValue("supplier_id", matched.id)
+      setFieldsFound((prev) => prev + 1)
+    } else {
+      setExtractedSupplier({ name: pendingSupplierName.name, nif: pendingSupplierName.nif })
+      setShowProveedorModal(true)
+    }
+    setPendingSupplierName(null)
+  }, [suppliersLoaded, pendingSupplierName])  // eslint-disable-line
+
+  async function handleSupplierCreated(s: { id: string; name: string }) {
+    // Recargar lista completa desde BD para que el Select muestre el nombre correctamente
+    const { data } = await createClient().from("suppliers").select("id, name").order("name")
+    setSuppliers(data ?? [...suppliers, s])
     setSelectedSupplierId(s.id)
     setValue("supplier_id", s.id)
   }
@@ -102,23 +128,24 @@ export default function NuevaFacturaPage() {
         if (d.vat_rate) { setValue("vat_rate", d.vat_rate); found++ }
         if (d.concept) { setValue("concept", d.concept); found++ }
 
-        // Intentar encontrar el proveedor en la lista
+        // Proveedor: si los datos ya cargaron, emparejar ahora; si no, encolar para cuando carguen
         if (d.supplier_name) {
-          const nameLower = d.supplier_name.toLowerCase()
-          const matched = suppliers.find((s) => {
-            const sLower = s.name.toLowerCase()
-            return sLower === nameLower ||
-              sLower.includes(nameLower) ||
-              nameLower.includes(sLower)
-          })
-          if (matched) {
-            setSelectedSupplierId(matched.id)
-            setValue("supplier_id", matched.id)
-            found++
+          if (suppliersLoaded) {
+            const nameLower = d.supplier_name.toLowerCase()
+            const matched = suppliers.find((s) => {
+              const sLower = s.name.toLowerCase()
+              return sLower === nameLower || sLower.includes(nameLower) || nameLower.includes(sLower)
+            })
+            if (matched) {
+              setSelectedSupplierId(matched.id)
+              setValue("supplier_id", matched.id)
+              found++
+            } else {
+              setExtractedSupplier({ name: d.supplier_name, nif: d.supplier_nif })
+              setShowProveedorModal(true)
+            }
           } else {
-            // No existe aún: abrir modal con el nombre pre-rellenado
-            setExtractedSupplier({ name: d.supplier_name, nif: d.supplier_nif })
-            setShowProveedorModal(true)
+            setPendingSupplierName({ name: d.supplier_name, nif: d.supplier_nif })
           }
         }
 
