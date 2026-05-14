@@ -18,7 +18,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -63,6 +63,8 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const [sanidadOpen, setSanidadOpen] = useState(pathname.startsWith("/sanidad"))
 
   const nav = role === "admin" ? adminNav : employeeNav
@@ -195,7 +197,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
               Invitar trabajador
             </Link>
 
-            <div className="rounded-xl overflow-hidden border border-sidebar-border/40">
+            {mounted && <div className="rounded-xl overflow-hidden border border-sidebar-border/40">
               <p className="text-[10px] font-bold text-sidebar-foreground/35 uppercase tracking-widest px-3 pt-2.5 pb-1.5">Apariencia</p>
               <div className="grid grid-cols-2 gap-0 divide-x divide-sidebar-border/40">
                 <button
@@ -239,7 +241,7 @@ export function Sidebar({ role, businessName, userName }: SidebarProps) {
                   {theme === "dark" && <div className="w-4 h-0.5 rounded-full bg-blue-400" />}
                 </button>
               </div>
-            </div>
+            </div>}
           </>
         )}
       </nav>

@@ -28,36 +28,60 @@ function parseNum(s: string): number {
   return parseFloat(clean.replace(",", "."))
 }
 
-// ── Extraer todos los importes monetarios del texto
+// ── Extraer todos los importes monetarios del texto (muy permisivo)
 function extractAllAmounts(text: string): number[] {
-  const raw = text.match(/\b\d{1,6}[.,]\d{2}\b/g) ?? []
-  const nums = raw.map(parseNum).filter((n) => n > 0 && n < 1_000_000)
-  return [...new Set(nums)]
+  // Captura: 108,00 / 1.234,56 / 112.32 / 4,32
+  const patterns = [
+    /\d{1,3}(?:\.\d{3})+,\d{2}/g,   // 1.234,56
+    /\d{1,3}(?:,\d{3})+\.\d{2}/g,   // 1,234.56
+    /\d{1,6},\d{2}(?!\d)/g,          // 108,00
+    /\d{1,6}\.\d{2}(?!\d)/g,         // 108.00
+  ]
+  const all: string[] = []
+  for (const pat of patterns) {
+    const matches = text.match(pat) ?? []
+    all.push(...matches)
+  }
+  const nums = all.map(parseNum).filter((n) => n > 0.01 && n < 999_999)
+  return [...new Set(nums.map((n) => parseFloat(n.toFixed(2))))]
 }
 
 // ── Buscar la combinación base+IVA+total matemáticamente correcta
 function findAmounts(amounts: number[], vatRateHint?: number): {
   base: number; vat: number; total: number; rate: number
 } | null {
-  const rates = vatRateHint
+  const rates = vatRateHint != null
     ? [vatRateHint]
     : [21, 10, 4, 0]
 
-  // Ordenar de mayor a menor para empezar por el total más probable
   const sorted = [...amounts].sort((a, b) => b - a)
+  const TOLERANCE = 0.05 // tolerancia de 5 céntimos
 
   for (const rate of rates) {
     for (const total of sorted) {
-      // base = total / (1 + rate/100)
-      const base = parseFloat((total / (1 + rate / 100)).toFixed(2))
-      const vat = parseFloat((total - base).toFixed(2))
+      if (total < 1) continue
 
-      // Buscar si base y vat existen en la lista (tolerancia 0.02€)
-      const baseMatch = amounts.find((a) => Math.abs(a - base) <= 0.02)
-      const vatMatch = amounts.find((a) => Math.abs(a - vat) <= 0.02)
+      // Estrategia 1: base = total / (1 + rate/100)
+      const base1 = parseFloat((total / (1 + rate / 100)).toFixed(2))
+      const vat1 = parseFloat((total - base1).toFixed(2))
+      const baseM1 = amounts.find((a) => Math.abs(a - base1) <= TOLERANCE)
+      const vatM1 = amounts.find((a) => Math.abs(a - vat1) <= TOLERANCE)
+      if (baseM1 && vatM1 && Math.abs(baseM1 - total) > TOLERANCE && Math.abs(vatM1 - total) > TOLERANCE) {
+        return { base: baseM1, vat: vatM1, total, rate }
+      }
 
-      if (baseMatch && vatMatch && baseMatch !== total && vatMatch !== total && baseMatch !== vatMatch) {
-        return { base: baseMatch, vat: vatMatch, total, rate }
+      // Estrategia 2: buscar base+vat = total sin necesitar que existan por separado
+      for (const base of sorted) {
+        if (base >= total) continue
+        const vat = parseFloat((total - base).toFixed(2))
+        const expectedVat = parseFloat((base * rate / 100).toFixed(2))
+        if (Math.abs(vat - expectedVat) <= TOLERANCE) {
+          // Verificar que el vat también existe en el texto (o al menos base y total)
+          const vatM = amounts.find((a) => Math.abs(a - vat) <= TOLERANCE)
+          if (vatM || rate === 0) {
+            return { base, vat: vatM ?? vat, total, rate }
+          }
+        }
       }
     }
   }
@@ -109,22 +133,23 @@ export function extractFromText(rawText: string): InvoiceData {
   // ── 2. Número de factura ──────────────────────────────────
   // Patrones muy permisivos para cualquier formato español
   const numPatterns = [
-    // "Factura C26 32" o "Factura 2024/001" o "Factura A-001"
-    /factura\s+n[uº°]?[:\s]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s*\n|\s{2,}|$)/im,
-    /factura[:\s]+([A-Z0-9][\w\-\/]{1,20})/i,
+    // "Factura nº C26 32" o "Factura nº 2024/001"
+    /factura\s+n[uúº°]?[:\s]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
+    // "Factura C26-32" o "Factura C26 32" (con o sin nº, número con espacio o guión)
+    /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     // "Fra. nº 001"
-    /fra\.?\s*n[uº°]?[:\s]*([A-Z0-9][\w\-\/]{1,15})/i,
+    /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{1,15}?)(?:\s{2,}|\n|$)/im,
     // "Nº factura: 001"
-    /n[uº°]\s*\.?\s*factura[:\s]+([A-Z0-9][\w\-\/]{1,15})/i,
+    /n[uúº°]\s*\.?\s*factura[:\s]+([A-Z0-9][\w\-\/\s]{1,15}?)(?:\s{2,}|\n|$)/im,
     // "F/2024/001" o "F-001-2024"
     /\b(F[\/\-]\d{2,4}[\/\-]\d{2,6})\b/i,
   ]
   for (const pat of numPatterns) {
     const m = text.match(pat)
     if (m) {
-      const num = m[1].trim().replace(/\s+/g, " ")
+      const num = m[1].trim().replace(/\s+/g, " ").replace(/\s*-\s*/g, "-")
       // Filtrar si es demasiado largo o parece una dirección
-      if (num.length <= 20 && !/calle|avenida|avda/i.test(num)) {
+      if (num.length <= 20 && !/calle|avenida|avda|ctra/i.test(num)) {
         result.invoice_number = num
         break
       }
@@ -132,8 +157,12 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // ── 3. Fecha de la factura ────────────────────────────────
-  // Buscar cerca de "Fecha" sin requerir dos puntos
+  // Prioridad: "Fecha factura" / "Fecha emisión" > "Fecha" sola > primera fecha
   const fechaPatterns = [
+    // Específicamente la fecha de emisión de la factura
+    /fecha\s+(?:factura|emisi[oó]n|expedici[oó]n)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+    /fecha\s+(?:factura|emisi[oó]n|expedici[oó]n)[:\s]*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i,
+    // "Fecha:" genérico (puede ser vencimiento si aparece antes)
     /fecha\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
     /fecha\s*[:\-]?\s*(\d{1,2}\s+de\s+\w+\s+de\s+\d{4})/i,
   ]
@@ -144,12 +173,19 @@ export function extractFromText(rawText: string): InvoiceData {
       if (d) { result.invoice_date = d; break }
     }
   }
-  // Fallback: primera fecha que aparece en el texto
+  // Fallback: buscar fechas que NO estén asociadas a vencimiento/pago
   if (!result.invoice_date) {
-    const allDates = text.match(/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}\b/g) ?? []
-    for (const d of allDates) {
-      const parsed = parseDate(d)
+    const allDateMatches = [...text.matchAll(/\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\b/g)]
+    for (const match of allDateMatches) {
+      const before = text.substring(Math.max(0, (match.index ?? 0) - 40), match.index ?? 0)
+      if (/vencimiento|vence\b|pago|cobro/i.test(before)) continue
+      const parsed = parseDate(match[1])
       if (parsed) { result.invoice_date = parsed; break }
+    }
+    // Si todas son de vencimiento, usar la primera igualmente
+    if (!result.invoice_date && allDateMatches.length > 0) {
+      const parsed = parseDate(allDateMatches[0][1])
+      if (parsed) result.invoice_date = parsed
     }
   }
 
@@ -210,9 +246,13 @@ export function extractFromText(rawText: string): InvoiceData {
     const productLine = lines.find((l) =>
       l.length > 5 && l.length < 80 &&
       /^[A-Z]/.test(l) &&
-      !/^(S\.A\.|S\.L\.|factura|fecha|total|base|iva|pagado|contado|observ)/i.test(l) &&
+      !/^(S\.A\.|S\.L\.|S\.A\.T\.|factura|fecha|total|base|iva|pagado|contado|observ|proveedor)/i.test(l) &&
       !/^\d/.test(l) &&
-      !/NIF|CIF|Tel:|Fax:|CADIZ|MADRID/.test(l)
+      !/NIF|CIF|Tel[éef]|Fax:|Email|e-mail/i.test(l) &&
+      // Excluir direcciones (carreteras, calles, polígonos)
+      !/^(CTRA|CARRETERA|C\/|C\.\s|AVDA|PLAZA|PL\.|P\.I\.|POL\.?\s?IND|POLÍGONO|BARRIO|URB\.|URBANIZ)/i.test(l) &&
+      !/\bKM\.?\s*\d/i.test(l) &&
+      !/\b\d{5}\b/.test(l)  // código postal → es una dirección
     )
     if (productLine) result.concept = productLine
   }

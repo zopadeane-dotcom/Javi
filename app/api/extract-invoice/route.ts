@@ -11,25 +11,36 @@ export async function POST(req: NextRequest) {
     const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf")
 
     if (!isPdf) {
-      // Para imágenes no podemos extraer texto sin OCR — devolvemos vacío
-      return NextResponse.json({ success: true, data: {}, isImage: true })
+      return NextResponse.json({ success: true, data: {}, isImage: true, rawText: "Imagen — sin texto extraíble" })
     }
 
-    // Extraer texto del PDF
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require("pdf-parse")
-    const parsed = await pdfParse(buffer)
-    const text = parsed.text
+    let text = ""
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require("pdf-parse")
+      const result = await pdfParse(buffer)
+      text = result.text ?? ""
+    } catch (e: any) {
+      return NextResponse.json({
+        success: true, data: {}, scanned: true,
+        rawText: `Error pdf-parse: ${e?.message}`,
+      })
+    }
 
-    if (!text || text.trim().length < 10) {
-      return NextResponse.json({ success: true, data: {}, scanned: true })
+    if (!text || text.trim().length < 5) {
+      return NextResponse.json({
+        success: true, data: {}, scanned: true,
+        rawText: `Texto vacío (${text?.length ?? 0} chars)`,
+      })
     }
 
     const data = extractFromText(text)
-    return NextResponse.json({ success: true, data, rawText: text.substring(0, 500) })
+    return NextResponse.json({ success: true, data, rawText: text.substring(0, 1000) })
 
   } catch (e: any) {
-    console.error("Extract error:", e)
-    return NextResponse.json({ error: e.message ?? "Error al leer el PDF" }, { status: 500 })
+    return NextResponse.json({
+      success: true, data: {}, scanned: true,
+      rawText: `Error general: ${e?.message}`,
+    })
   }
 }

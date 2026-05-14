@@ -44,6 +44,7 @@ export default function NuevaFacturaPage() {
   const [isImage, setIsImage] = useState(false)
   const [isScanned, setIsScanned] = useState(false)
   const [fieldsFound, setFieldsFound] = useState(0)
+  const [debugText, setDebugText] = useState<string | null>(null)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
   const [showProveedorModal, setShowProveedorModal] = useState(false)
   const [selectedSupplierId, setSelectedSupplierId] = useState("")
@@ -87,6 +88,8 @@ export default function NuevaFacturaPage() {
       fd.append("file", file)
       const resp = await fetch("/api/extract-invoice", { method: "POST", body: fd })
       const json = await resp.json()
+
+      if (json.rawText) setDebugText(json.rawText)
 
       if (json.success) {
         const d = json.data
@@ -273,6 +276,12 @@ export default function NuevaFacturaPage() {
                       <>
                         <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">PDF escaneado (imagen)</p>
                         <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">No se puede leer el texto automáticamente. Rellena los datos manualmente.</p>
+                        {debugText && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-amber-800 cursor-pointer underline">Ver detalle técnico (debug)</summary>
+                            <pre className="text-[10px] mt-1 whitespace-pre-wrap bg-amber-100 p-2 rounded max-h-40 overflow-y-auto">{debugText}</pre>
+                          </details>
+                        )}
                       </>
                     )}
                     {!isScanned && fieldsFound < 3 && fieldsFound > 0 && (
@@ -284,7 +293,12 @@ export default function NuevaFacturaPage() {
                     {fieldsFound === 0 && !isScanned && (
                       <>
                         <p className="text-sm font-semibold">No se encontraron datos</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">El PDF puede tener un formato no estándar. Rellena los datos manualmente.</p>
+                        {debugText && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-primary cursor-pointer">Ver texto extraído del PDF (debug)</summary>
+                            <pre className="text-[10px] text-muted-foreground mt-1 whitespace-pre-wrap bg-muted p-2 rounded max-h-40 overflow-y-auto">{debugText}</pre>
+                          </details>
+                        )}
                       </>
                     )}
                   </div>
