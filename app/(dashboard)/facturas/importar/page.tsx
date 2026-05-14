@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { createInvoice, createSupplier } from "@/lib/actions/invoices"
+import { createInvoice } from "@/lib/actions/invoices"
 import JSZip from "jszip"
 import {
   CheckCircle, AlertCircle, Loader2, ArrowLeft, ArrowRight,
@@ -162,34 +162,45 @@ export default function ImportarFacturasPage() {
   async function saveAll() {
     setStep("saving")
     let saved = 0
-    const total = rows.filter((r) => r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_id || r.supplier_name)).length
+    const toSave = rows.filter((r) => r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_name || r.supplier_id))
+    const total = toSave.length
+
+    // Obtener business_id una sola vez para los uploads
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = user
+      ? await supabase.from("profiles").select("business_id").eq("id", user.id).single()
+      : { data: null }
 
     for (const row of rows) {
       if (row.saved || !row.invoice_number || !row.invoice_date || !row.base_amount) continue
+      if (!row.supplier_name && !row.supplier_id) continue
       try {
-        let supplierId = row.supplier_id
-        if (!supplierId && row.supplier_name) {
-          const fd = new FormData()
-          fd.append("name", row.supplier_name)
-          if (row.supplier_nif) fd.append("nif", row.supplier_nif)
-          const res = await createSupplier(fd)
-          if (res?.id) supplierId = res.id as string
+        // Subir PDF directamente a Supabase Storage (evita límite 1MB del Server Action)
+        let fileUrl: string | undefined
+        if (profile?.business_id) {
+          const ext = row.file.name.split(".").pop()
+          const path = `${profile.business_id}/facturas/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+          const { error } = await supabase.storage.from("documents").upload(path, row.file)
+          if (!error) fileUrl = path
         }
-        if (!supplierId) continue
+
         const fd = new FormData()
-        fd.append("supplier_id", supplierId)
+        if (row.supplier_id) fd.append("supplier_id", row.supplier_id)
+        else fd.append("supplier_name", row.supplier_name!)
         fd.append("invoice_number", row.invoice_number)
         fd.append("invoice_date", row.invoice_date)
         fd.append("base_amount", String(row.base_amount))
         fd.append("vat_rate", String(row.vat_rate ?? 10))
         if (row.concept) fd.append("concept", row.concept)
         fd.append("is_deductible", "true")
-        fd.append("file", row.file)
+        if (fileUrl) fd.append("file_url", fileUrl)
+
         await createInvoice(fd)
         updateRow(row.id, { saved: true })
         saved++
         setSavingProgress(Math.round((saved / total) * 100))
-      } catch { /* continúa */ }
+      } catch { /* continúa con la siguiente */ }
     }
     setStep("done")
     toast.success(`¡${saved} factura${saved !== 1 ? "s" : ""} importada${saved !== 1 ? "s" : ""}!`)
