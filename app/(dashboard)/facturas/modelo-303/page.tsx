@@ -61,22 +61,22 @@ export default async function Modelo303Page({
     <div className="space-y-8 max-w-3xl">
 
       {/* Cabecera */}
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-6">
+        <div className="pt-1">
           <h1 className="text-2xl font-bold">Modelo 303</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Resumen de IVA soportado para la declaración trimestral · AEAT
+            IVA soportado · Declaración trimestral AEAT
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-0 shrink-0">
           {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
             <Link
               key={y}
               href={`?year=${y}`}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`text-5xl font-black tabular-nums leading-none transition-all duration-150 ${
                 y === year
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "text-primary"
+                  : "text-muted-foreground/20 hover:text-muted-foreground/50"
               }`}
             >
               {y}
