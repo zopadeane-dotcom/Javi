@@ -57,8 +57,8 @@ function polishRow(row: InvoiceRow): InvoiceRow {
         ?? numericSegments[0]
       if (candidate) {
         result.invoice_number = candidate
-      // No usar el nombre del archivo como último recurso si mezcla
-      // palabras genéricas (FACTURA, AMAZON, INVOICE...) — produce basura
+      }
+      // No usar fallback de nombre de archivo — produce basura (FACTURAAMAZONES)
     }
   }
 
