@@ -57,11 +57,8 @@ function polishRow(row: InvoiceRow): InvoiceRow {
         ?? numericSegments[0]
       if (candidate) {
         result.invoice_number = candidate
-      } else {
-        // Último recurso: primeros 15 caracteres alfanuméricos del nombre
-        const alnum = fileName.replace(/[^A-Z0-9]/gi, "").substring(0, 15)
-        if (alnum.length >= 3) result.invoice_number = alnum.toUpperCase()
-      }
+      // No usar el nombre del archivo como último recurso si mezcla
+      // palabras genéricas (FACTURA, AMAZON, INVOICE...) — produce basura
     }
   }
 
