@@ -45,16 +45,8 @@ export async function createInvoice(formData: FormData) {
   const year = new Date(parsed.data.invoice_date).getFullYear()
   const quarter = calcQuarter(parsed.data.invoice_date)
 
-  let file_url: string | null = null
-  const file = formData.get("file") as File | null
-  if (file && file.size > 0) {
-    const ext = file.name.split(".").pop()
-    const path = `${profile.business_id}/facturas/${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(path, file)
-    if (!uploadError) file_url = path
-  }
+  // El archivo se sube desde el cliente; aquí solo recibimos la ruta
+  const file_url = (formData.get("file_url") as string | null) || null
 
   const { error } = await supabase.from("invoices").insert({
     ...parsed.data,

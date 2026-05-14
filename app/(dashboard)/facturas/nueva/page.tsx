@@ -18,6 +18,7 @@ import {
   FileText, Image as ImageIcon, AlertCircle, Loader2,
 } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 import { FileUploadZone } from "@/components/facturas/file-upload-zone"
 
 const schema = z.object({
@@ -97,9 +98,27 @@ export default function NuevaFacturaPage() {
   }
 
   async function onSubmit(data: FormData) {
+    // Subir el archivo directamente a Supabase Storage desde el cliente
+    // para evitar el límite de 1 MB de los Server Actions
+    let fileUrl: string | undefined
+    if (uploadedFile && uploadedFile.size > 0) {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles").select("business_id").eq("id", user.id).single()
+        if (profile?.business_id) {
+          const ext = uploadedFile.name.split(".").pop()
+          const path = `${profile.business_id}/facturas/${Date.now()}.${ext}`
+          const { error } = await supabase.storage.from("documents").upload(path, uploadedFile)
+          if (!error) fileUrl = path
+        }
+      }
+    }
+
     const fd = new FormData()
     Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== "") fd.append(k, String(v)) })
-    if (uploadedFile) fd.append("file", uploadedFile)
+    if (fileUrl) fd.append("file_url", fileUrl)
     const result = await createInvoice(fd)
     if (result?.error) { toast.error(result.error); return }
     toast.success("¡Factura registrada correctamente!")
