@@ -48,8 +48,37 @@ export async function createInvoice(formData: FormData) {
   // El archivo se sube desde el cliente; aquí solo recibimos la ruta
   const file_url = (formData.get("file_url") as string | null) || null
 
+  // Resolver supplier_id: si no viene, crearlo desde supplier_name
+  let supplier_id = parsed.data.supplier_id ?? null
+  if (!supplier_id) {
+    const supplierName = (formData.get("supplier_name") as string | null)?.trim()
+    if (!supplierName) return { error: "Indica el nombre del proveedor" }
+
+    // Buscar si ya existe con ese nombre
+    const { data: existing } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("business_id", profile.business_id)
+      .ilike("name", supplierName)
+      .maybeSingle()
+
+    if (existing) {
+      supplier_id = existing.id
+    } else {
+      // Crear nuevo proveedor con el nombre extraído del PDF
+      const { data: newS, error: sErr } = await supabase
+        .from("suppliers")
+        .insert({ business_id: profile.business_id, name: supplierName })
+        .select("id")
+        .single()
+      if (sErr) return { error: sErr.message }
+      supplier_id = newS.id
+    }
+  }
+
   const { error } = await supabase.from("invoices").insert({
     ...parsed.data,
+    supplier_id,
     business_id: profile.business_id,
     vat_amount,
     total_amount,
