@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
 import { InvoiceFilters } from "@/components/facturas/invoice-filters"
+import { AutomationButton } from "@/components/facturas/automation-popup"
 import { format } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +53,7 @@ export default async function FacturasPage({
           <p className="text-muted-foreground text-sm">Facturas de proveedores — {year}</p>
         </div>
         <div className="flex gap-2">
+          <AutomationButton />
           <Button variant="outline" asChild>
             <Link href="/facturas/modelo-303">Modelo 303</Link>
           </Button>
