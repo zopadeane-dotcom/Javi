@@ -68,15 +68,16 @@ export default async function Modelo303Page({
             IVA soportado · Declaración trimestral AEAT
           </p>
         </div>
-        <div className="flex flex-col items-end gap-0 shrink-0">
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Años</p>
           {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
             <Link
               key={y}
               href={`?year=${y}`}
-              className={`text-5xl font-black tabular-nums leading-none transition-all duration-150 ${
+              className={`flex items-center justify-center w-24 rounded-2xl py-2.5 text-2xl font-black tabular-nums transition-all duration-150 ${
                 y === year
-                  ? "text-primary"
-                  : "text-muted-foreground/20 hover:text-muted-foreground/50"
+                  ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105"
+                  : "bg-primary/10 text-primary/40 hover:bg-primary/20 hover:text-primary/70"
               }`}
             >
               {y}
