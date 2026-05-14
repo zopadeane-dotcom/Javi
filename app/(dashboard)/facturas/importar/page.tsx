@@ -93,8 +93,8 @@ function polishRow(row: InvoiceRow): InvoiceRow {
   }
 
   // ── Número de factura inválido ─────────────────────────────
-  const invNum = result.invoice_number ?? ""
-  if (/^(FECHA|MR\.|SR\.|ID\s)/i.test(invNum) || /^\d+\/\d+$/.test(invNum)) {
+  const invNumCheck = result.invoice_number ?? ""
+  if (/^(FECHA|MR\.|SR\.|ID\s)/i.test(invNumCheck) || /^\d+\/\d+$/.test(invNumCheck)) {
     result.invoice_number = undefined
   }
 
