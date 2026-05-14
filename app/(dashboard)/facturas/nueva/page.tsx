@@ -172,16 +172,13 @@ export default function NuevaFacturaPage() {
               </div>
             </div>
             <h2 className="font-bold text-lg">Sube la factura</h2>
-            <p className="text-muted-foreground text-sm">
-              Si es un PDF digital, leemos los datos automáticamente.<br />
-              Si es una foto, te mostramos la imagen al lado para que lo copies fácilmente.
-            </p>
+            <p className="text-muted-foreground text-sm">PDF digital → datos automáticos · Foto → imagen al lado</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="flex items-center gap-2 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/40 px-3 py-2.5">
               <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-              <span className="text-green-800 dark:text-green-300 font-medium">PDF digital → automático</span>
+              <span className="text-green-800 dark:text-green-300 font-medium">PDF → automático</span>
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40 px-3 py-2.5">
               <ImageIcon className="h-4 w-4 text-blue-600 shrink-0" />

@@ -3,14 +3,10 @@ import { requireAdmin } from "@/lib/auth"
 import { InvoiceFilters } from "@/components/facturas/invoice-filters"
 import { AutomationButton } from "@/components/facturas/automation-popup"
 import { format } from "date-fns"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table"
 import Link from "next/link"
-import { Plus, FileText, FolderOpen } from "lucide-react"
+import { Plus, FileText, FolderOpen, TrendingUp, Receipt, BadgePercent, Clock, ArrowRight } from "lucide-react"
 
 function formatEur(n: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
@@ -19,7 +15,7 @@ function formatEur(n: number) {
 export default async function FacturasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; quarter?: string }>
+  searchParams: Promise<{ year?: string; quarter?: string; supplier?: string; search?: string }>
 }) {
   const supabase = await createClient()
   const profile = await requireAdmin()
@@ -28,6 +24,23 @@ export default async function FacturasPage({
   const currentYear = new Date().getFullYear()
   const year = parseInt(params.year ?? String(currentYear))
 
+  // Lista de proveedores para el filtro
+  const { data: supplierList } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .eq("business_id", profile.business_id!)
+    .order("name")
+
+  // Última factura subida (sin filtros)
+  const { data: lastInvoices } = await supabase
+    .from("invoices")
+    .select("*, suppliers(name)")
+    .eq("business_id", profile.business_id!)
+    .order("created_at", { ascending: false })
+    .limit(1)
+  const lastInvoice = lastInvoices?.[0] ?? null
+
+  // Query principal con filtros
   let query = supabase
     .from("invoices")
     .select("*, suppliers(name)")
@@ -35,8 +48,11 @@ export default async function FacturasPage({
     .eq("year", year)
     .order("invoice_date", { ascending: false })
 
-  if (params.quarter) {
-    query = query.eq("quarter", parseInt(params.quarter))
+  if (params.quarter) query = query.eq("quarter", parseInt(params.quarter))
+  if (params.search) query = query.ilike("invoice_number", `%${params.search}%`)
+  if (params.supplier) {
+    const sup = supplierList?.find((s) => s.name === params.supplier)
+    if (sup) query = query.eq("supplier_id", sup.id)
   }
 
   const { data: invoices } = await query
@@ -47,105 +63,163 @@ export default async function FacturasPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+
+      {/* Cabecera */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Facturas</h1>
-          <p className="text-muted-foreground text-sm">Facturas de proveedores — {year}</p>
+          <p className="text-muted-foreground text-sm">Gestión de facturas de proveedores</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <AutomationButton />
-          <Button variant="outline" asChild>
-            <Link href="/facturas/modelo-303">Modelo 303</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/facturas/importar">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Importar carpeta
+          <Button variant="outline" asChild className="gap-2">
+            <Link href="/facturas/modelo-303">
+              <BadgePercent className="h-4 w-4" />
+              Modelo 303
             </Link>
           </Button>
-          <Button asChild>
+          <Button variant="outline" asChild className="gap-2">
+            <Link href="/facturas/importar">
+              <FolderOpen className="h-4 w-4" />
+              Importar
+            </Link>
+          </Button>
+          <Button asChild className="gap-2">
             <Link href="/facturas/nueva">
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Nueva factura
             </Link>
           </Button>
         </div>
       </div>
 
-      <InvoiceFilters year={year} currentYear={currentYear} quarter={params.quarter} />
+      {/* Filtros */}
+      <InvoiceFilters
+        year={year}
+        currentYear={currentYear}
+        quarter={params.quarter}
+        suppliers={supplierList ?? []}
+        activeSupplier={params.supplier}
+        search={params.search}
+      />
 
-      {/* Resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Base imponible total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatEur(totalBase)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">IVA soportado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatEur(totalVat)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">IVA deducible</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">{formatEur(totalDeductible)}</p>
-          </CardContent>
-        </Card>
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Base imponible", value: formatEur(totalBase), icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { label: "IVA soportado", value: formatEur(totalVat), icon: Receipt, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "IVA deducible", value: formatEur(totalDeductible), icon: BadgePercent, color: "text-green-500", bg: "bg-green-500/10" },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="rounded-2xl border bg-card p-5 flex items-center gap-4">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${bg}`}>
+              <Icon className={`h-5 w-5 ${color}`} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">{label}</p>
+              <p className="text-xl font-bold tabular-nums">{value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Nº Factura</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Concepto</TableHead>
-                <TableHead className="text-right">Base</TableHead>
-                <TableHead className="text-right">IVA</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Deducible</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!invoices?.length && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    No hay facturas en este periodo
-                  </TableCell>
-                </TableRow>
-              )}
-              {invoices?.map((inv: any) => (
-                <TableRow key={inv.id}>
-                  <TableCell>{format(new Date(inv.invoice_date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell className="font-mono text-sm">{inv.invoice_number}</TableCell>
-                  <TableCell>{inv.suppliers?.name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{inv.concept ?? "—"}</TableCell>
-                  <TableCell className="text-right">{formatEur(inv.base_amount)}</TableCell>
-                  <TableCell className="text-right">{formatEur(inv.vat_amount)} ({inv.vat_rate}%)</TableCell>
-                  <TableCell className="text-right font-medium">{formatEur(inv.total_amount)}</TableCell>
-                  <TableCell>
-                    <Badge variant={inv.is_deductible ? "default" : "secondary"}>
-                      {inv.is_deductible ? "Sí" : "No"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Última factura */}
+      {lastInvoice && !params.search && !params.supplier && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Última factura subida</h2>
+          </div>
+          <div className="rounded-2xl border bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20 p-4 flex items-center gap-4 flex-wrap">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{(lastInvoice as any).suppliers?.name ?? "Sin proveedor"}</p>
+              <p className="text-xs text-muted-foreground">
+                {lastInvoice.invoice_number} · {format(new Date(lastInvoice.invoice_date), "dd/MM/yyyy")}
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-bold text-primary text-lg tabular-nums">{formatEur(lastInvoice.total_amount)}</p>
+              <p className="text-xs text-muted-foreground">IVA {lastInvoice.vat_rate}%</p>
+            </div>
+            <Badge variant={lastInvoice.is_deductible ? "default" : "secondary"} className="shrink-0">
+              {lastInvoice.is_deductible ? "Deducible" : "No deducible"}
+            </Badge>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de facturas */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            {params.supplier ? `Facturas de ${params.supplier}` : params.search ? `Resultados: "${params.search}"` : "Todas las facturas"}
+            {invoices?.length ? <span className="ml-2 text-xs bg-muted rounded-full px-2 py-0.5">{invoices.length}</span> : null}
+          </h2>
+        </div>
+
+        {!invoices?.length ? (
+          <div className="rounded-2xl border bg-card p-12 text-center">
+            <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <p className="text-muted-foreground font-medium">No hay facturas en este período</p>
+            <Button asChild size="sm" className="mt-4 gap-2">
+              <Link href="/facturas/nueva"><Plus className="h-3.5 w-3.5" />Nueva factura</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fecha</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nº Factura</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Proveedor</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Concepto</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Base</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">IVA</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">303</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {invoices.map((inv: any, i: number) => (
+                    <tr key={inv.id} className={`transition-colors hover:bg-muted/30 ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {format(new Date(inv.invoice_date), "dd/MM/yy")}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">
+                        {inv.invoice_number}
+                      </td>
+                      <td className="px-4 py-3 font-medium max-w-[140px] truncate">
+                        {inv.suppliers?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs max-w-[160px] truncate hidden md:table-cell">
+                        {inv.concept ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatEur(inv.base_amount)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden sm:table-cell">
+                        {formatEur(inv.vat_amount)}<span className="text-xs ml-1 opacity-60">({inv.vat_rate}%)</span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-bold">{formatEur(inv.total_amount)}</td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          inv.is_deductible
+                            ? "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          {inv.is_deductible ? "✓ Sí" : "No"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
