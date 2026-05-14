@@ -21,6 +21,7 @@ import Link from "next/link"
 import { FileUploadZone } from "@/components/facturas/file-upload-zone"
 
 const schema = z.object({
+  supplier_name: z.string().optional(),
   invoice_number: z.string().min(1, "Número de factura obligatorio"),
   invoice_date: z.string().min(1, "Fecha obligatoria"),
   base_amount: z.number().positive("Importe debe ser positivo"),
@@ -78,6 +79,7 @@ export default function NuevaFacturaPage() {
         const d = json.data
         let found = 0
 
+        if (d.supplier_name) { setValue("supplier_name", d.supplier_name); found++ }
         if (d.invoice_number) { setValue("invoice_number", d.invoice_number); found++ }
         if (d.invoice_date) { setValue("invoice_date", d.invoice_date); found++ }
         if (d.base_amount) { setValue("base_amount", d.base_amount); found++ }
@@ -265,6 +267,12 @@ export default function NuevaFacturaPage() {
             )}
 
             <div className="rounded-2xl border bg-card p-5 space-y-4">
+
+              {/* Proveedor */}
+              <div className="space-y-1.5">
+                <Label htmlFor="supplier_name">Proveedor</Label>
+                <Input id="supplier_name" placeholder="Nombre del proveedor" {...register("supplier_name")} />
+              </div>
 
               {/* Nº y fecha */}
               <div className="grid grid-cols-2 gap-3">
