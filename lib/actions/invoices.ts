@@ -91,16 +91,16 @@ export async function createSupplier(formData: FormData) {
   const email = formData.get("email") as string
   const phone = formData.get("phone") as string
 
-  const { error } = await supabase.from("suppliers").insert({
+  const { data, error } = await supabase.from("suppliers").insert({
     business_id: profile.business_id,
     name,
     nif: nif || null,
     email: email || null,
     phone: phone || null,
-  })
+  }).select("id").single()
 
   if (error) return { error: error.message }
 
   revalidatePath("/facturas/nueva")
-  return { success: true }
+  return { success: true, id: (data as any).id }
 }
