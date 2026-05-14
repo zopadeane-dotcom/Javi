@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { X, Mail, HardDrive, Sparkles, Zap, CheckCircle, ChevronRight } from "lucide-react"
+import { X, Mail, HardDrive, Sparkles, Zap, CheckCircle } from "lucide-react"
 
 export function AutomationButton() {
   const [open, setOpen] = useState(false)
@@ -13,116 +13,75 @@ export function AutomationButton() {
         className="flex items-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all px-3 py-2 text-sm font-semibold text-primary hover:scale-[1.02]"
       >
         <Zap className="h-4 w-4" />
-        Automatizar facturas
+        Automatizar
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-background rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
+        >
+          <div className="bg-background rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border">
 
-            {/* Cabecera */}
-            <div className="relative overflow-hidden px-6 py-6"
-              style={{ background: "linear-gradient(135deg, oklch(0.185 0.035 225), oklch(0.25 0.06 200))" }}>
-              <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10"
-                style={{ background: "radial-gradient(circle, oklch(0.55 0.15 172), transparent)" }} />
-              <button onClick={() => setOpen(false)} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-              <div className="flex items-center gap-3 relative">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/30">
-                  <Zap className="h-5 w-5 text-white" />
+            {/* Cabecera con X visible */}
+            <div className="flex items-center justify-between px-6 py-5 border-b">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Zap className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-white font-bold text-lg leading-tight">Automatizar facturas</p>
-                  <p className="text-white/50 text-sm">Conecta tus fuentes y olvídate del papeleo</p>
+                  <p className="font-bold text-base">Automatizar facturas</p>
+                  <p className="text-muted-foreground text-xs">Olvídate del papeleo manual</p>
                 </div>
               </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            {/* Contenido */}
-            <div className="px-6 py-5 space-y-4">
+            {/* Contenido compacto */}
+            <div className="px-6 py-5 space-y-3">
 
-              {/* Lo que ya funciona */}
-              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-bold text-primary">Ya activo: IA que lee tus facturas</p>
+              {/* Activo */}
+              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-4 flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <p className="font-bold text-sm text-primary">Lectura automática de PDFs</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Sube el PDF → proveedor, fecha e IVA se rellenan solos</p>
                 </div>
-                <p className="text-xs text-muted-foreground pl-6">
-                  Sube una foto o PDF de cualquier factura y la IA extrae automáticamente el proveedor,
-                  fecha, importes e IVA. Solo tienes que revisar y confirmar.
-                </p>
               </div>
 
-              {/* Google Drive */}
-              <div className="rounded-2xl border p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
-                    <HardDrive className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">Google Drive</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Guarda tus facturas en una carpeta de Drive y súbelas directamente a Workie pegando el enlace.
-                    </p>
-                  </div>
+              {/* Drive */}
+              <div className="rounded-2xl border p-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
+                  <HardDrive className="h-5 w-5 text-blue-600" />
                 </div>
-                <div className="rounded-xl bg-muted/40 p-3 space-y-2 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">Cómo hacerlo:</p>
-                  <div className="space-y-1.5">
-                    {[
-                      "Guarda la factura en Google Drive",
-                      "Haz click derecho → Compartir → \"Cualquiera con el enlace\"",
-                      "Copia el enlace y pégalo en Workie al subir la factura",
-                    ].map((step, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-bold">{i + 1}</span>
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div>
+                  <p className="font-bold text-sm">Google Drive</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Descarga la factura de Drive y arrástrala aquí</p>
                 </div>
               </div>
 
               {/* Email */}
-              <div className="rounded-2xl border p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/40">
-                    <Mail className="h-5 w-5 text-violet-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">Correo electrónico</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Cuando recibes una factura por email, descarga el adjunto y arrástralo directamente a Workie.
-                    </p>
-                  </div>
+              <div className="rounded-2xl border p-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/40">
+                  <Mail className="h-5 w-5 text-violet-600" />
                 </div>
-                <div className="rounded-xl bg-muted/40 p-3 space-y-2 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">El truco más rápido:</p>
-                  <div className="space-y-1.5">
-                    {[
-                      "Abre el email con la factura",
-                      "Descarga el PDF adjunto",
-                      "Ve a Workie → Nueva factura → arrastra el PDF",
-                      "La IA lo lee y rellena todo en segundos",
-                    ].map((step, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 text-[10px] font-bold">{i + 1}</span>
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div>
+                  <p className="font-bold text-sm">Email</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Descarga el PDF del correo y súbelo a Workie</p>
                 </div>
               </div>
 
               {/* Próximamente */}
-              <div className="rounded-2xl border border-dashed p-4 flex items-center gap-3 opacity-60">
+              <div className="rounded-2xl border border-dashed p-4 flex items-center gap-3 opacity-50">
                 <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold">Sincronización automática — Próximamente</p>
-                  <p className="text-xs text-muted-foreground">
-                    Conecta tu carpeta de Drive o tu correo y Workie importará las facturas solo, sin que hagas nada.
-                  </p>
+                  <p className="font-bold text-sm">Sincronización automática</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Próximamente — Drive y correo conectados directo</p>
                 </div>
               </div>
             </div>
@@ -130,9 +89,9 @@ export function AutomationButton() {
             <div className="px-6 pb-6">
               <button
                 onClick={() => setOpen(false)}
-                className="w-full rounded-xl bg-primary text-primary-foreground font-semibold py-3 text-sm hover:bg-primary/90 transition-colors"
+                className="w-full rounded-xl bg-primary text-primary-foreground font-bold py-3 text-sm hover:bg-primary/90 transition-colors"
               >
-                Entendido, ¡a facturar!
+                ¡Entendido!
               </button>
             </div>
           </div>
