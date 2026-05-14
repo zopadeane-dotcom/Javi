@@ -221,18 +221,29 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // ── 6. Nombre del proveedor ───────────────────────────────
-  // Buscar líneas con forma jurídica (S.A., S.L., S.A.T., etc.)
-  const companyRe = /\b([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{3,50}(?:S\.?A\.?T\.?|S\.?A\.?|S\.?L\.?U?\.?|S\.?C\.?P\.?|CB\b)\.?)\b/m
-  const companyM = text.match(companyRe)
-  if (companyM) {
-    result.supplier_name = companyM[1].trim()
+  // Estrategia A: forma jurídica al INICIO → "S.A.T. LA ZORRERA", "S.L. NOMBRE"
+  const reFormFirst = /\b((?:S\.A\.T|SAT|S\.A\.L|S\.L\.U|S\.L|S\.A|S\.C\.P|C\.B|CB)\.?\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{2,50})/m
+  // Estrategia B: forma jurídica al FINAL → "MERCADONA S.A.", "Bar ejemplo S.L."
+  const reFormFinal = /([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{2,50}\s(?:S\.A\.T|S\.A\.L|S\.L\.U|S\.L|S\.A|S\.C\.P|C\.B|CB)\.?)\b/m
+
+  const mFirst = text.match(reFormFirst)
+  const mFinal = text.match(reFormFinal)
+
+  if (mFirst) {
+    result.supplier_name = mFirst[1].trim().replace(/\s+/g, " ")
+  } else if (mFinal) {
+    result.supplier_name = mFinal[1].trim().replace(/\s+/g, " ")
   } else {
-    // Primera línea que parezca un nombre de empresa (no dirección, no número)
+    // Fallback: primera línea con varias palabras en mayúsculas (nombre de empresa)
     const candidate = lines.find((l) =>
-      l.length >= 3 && l.length <= 60 &&
-      /[A-ZÁÉÍÓÚÑ]/.test(l) &&
+      l.length >= 5 && l.length <= 60 &&
+      /[A-ZÁÉÍÓÚÑ]{2}/.test(l) &&
+      // Requiere al menos 2 palabras para evitar ciudades sueltas como "CADIZ"
+      l.trim().split(/\s+/).length >= 2 &&
       !/^\d/.test(l) &&
-      !/^(factura|fecha|n[uú]mero|p[aá]g|total|base|iva|ref|tel|fax|cif|nif|ctra|avda|calle|c\/)/i.test(l)
+      !/^(factura|fecha|n[uú]mero|p[aá]g|total|base|iva|ref|tel|fax|cif|nif|ctra|carretera|avda|calle|c\/|km\b)/i.test(l) &&
+      !/\bKM\.?\s*\d/i.test(l) &&
+      !/\b\d{5}\b/.test(l)
     )
     if (candidate) result.supplier_name = candidate
   }
