@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 const invoiceSchema = z.object({
-  supplier_id: z.string().uuid(),
+  supplier_id: z.string().uuid().optional(),
   invoice_number: z.string().min(1),
   invoice_date: z.string().min(1),
   base_amount: z.coerce.number().positive().pipe(z.number()),
