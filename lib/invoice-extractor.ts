@@ -121,7 +121,8 @@ const LEGAL_FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.
 
 // ── Extractor principal
 export function extractFromText(rawText: string): InvoiceData {
-  const text = rawText
+  // Normalizar a NFC: convierte "u + acento combinatorio" → "ú" para que los regex funcionen
+  const text = rawText.normalize("NFC")
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
   const result: InvoiceData = {}
 
