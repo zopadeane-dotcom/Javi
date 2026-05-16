@@ -299,6 +299,8 @@ export function extractFromText(rawText: string): InvoiceData {
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{1,20})/i,
+    // Layout tabla: "FACTURA Nº   FECHA\n2026053   07/05/2026" — número en línea siguiente
+    /factura\s+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
     // "Factura nº / Factura #"
     /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
     /factura\s*#\s*([A-Z0-9][\w\-\/\.]+)/i,
