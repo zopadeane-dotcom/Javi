@@ -420,8 +420,9 @@ export function extractFromText(rawText: string): InvoiceData {
       const before60 = text.substring(Math.max(0, idx - 60), idx)
       if (/vencimiento|venc[ei]|pago\s+antes|cobro|caducidad/i.test(before60)) continue
       // Buscar el patrón de fecha completo centrado en el año
-      const window = text.substring(Math.max(0, idx - 8), idx + 5)
+      const window = text.substring(Math.max(0, idx - 30), idx + 5)
       const found = window.match(/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}/)
+        ?? window.match(/\d{1,2}\s+de\s+\w+(?:\s+de)?\s+\d{4}/)
         ?? window.match(/\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/)
       if (found) {
         const d = parseDate(found[0])
