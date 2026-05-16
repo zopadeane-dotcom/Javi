@@ -91,8 +91,8 @@ function parseDate(s: string): string | undefined {
   // "07 May 2026" / "7 mayo 2026"
   const named = s.match(/(\d{1,2})\s+([A-Za-záéíóúñ]{3,12})\s+(\d{4})/)
   if (named) { const m = M[named[2].toLowerCase()]; if (m) return `${named[3]}-${m}-${named[1].padStart(2,"0")}` }
-  // YYYY/MM/DD o YYYY-MM-DD
-  const iso = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
+  // YYYY/MM/DD, YYYY-MM-DD, YYYY.MM.DD (ej: firma digital Mercadona "2026.04.01")
+  const iso = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/)
   if (iso) { const mo=iso[2].padStart(2,"0"),d=iso[3].padStart(2,"0"); if(+mo<=12&&+d<=31) return `${iso[1]}-${mo}-${d}` }
   // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (también año de 2 dígitos: 11/05/26 → 2026)
   const short = s.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/)
@@ -315,7 +315,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
     // "N° Factura: A-V2026-00001536289" — Mercadona y similares (Nº ANTES de Factura)
-    /n[°º]\s+factura[:\s]+([A-Z0-9][\w\-\/\.]{3,25})/i,
+    /n[°º]\s+factura[:\s]+([A-Z0-9][\w\-\/\.]{3,20}?)(?=Fecha|fecha|FECHA|\s|\n|$)/i,
     // "Factura Venta FVP26004242" / "Factura Albarán XXX" — palabra descriptiva entre Factura y el código
     /factura\s+(?:venta|compra|pedido|albar[aá]n|proforma)\s+([A-Z0-9][\w\-\/\.]{3,20})/i,
     // "Factura nº / Factura #" misma línea — "." como separador, FECHA/CODIGO como terminador
@@ -379,8 +379,8 @@ export function extractFromText(rawText: string): InvoiceData {
     /(?:emitid[ao]|expedid[ao])\s+el\s+(.{6,20})/i,
     // "A fecha de"
     /a\s+fecha\s+de[:\s]+(.{6,20})/i,
-    // "Fecha Registro / Fecha Emisión / Fecha Venta + fecha" — palabra descriptiva entre Fecha y el valor
-    /\bfecha\s+(?:registro|emisi[oó]n|venta|pedido|contable|cobro|operaci[oó]n|entrega|expedici[oó]n)\s*:?\s*(.{6,25})/i,
+    // "Fecha Factura / Fecha Registro / Fecha Emisión..." — palabra descriptiva entre Fecha y el valor
+    /\bfecha\s+(?:factura|registro|emisi[oó]n|venta|pedido|contable|cobro|operaci[oó]n|entrega|expedici[oó]n)\s*:?\s*(.{5,25})/i,
     // "Fecha 11/05/2026" — sin dos puntos (formato tabla)
     /\bfecha\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i,
     // "Fecha:" genérico — también captura año de 2 dígitos (11/05/26)
