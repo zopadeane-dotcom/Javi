@@ -219,12 +219,12 @@ export function extractFromText(rawText: string): InvoiceData {
   // número y fecha en cuadro superior, NIF con prefijo EU (ESWxxxxxxx)
   // ════════════════════════════════════════════════════════
   if (/amazon/i.test(text)) {
-    // Nº factura — múltiples intentos para capturar ES600006K38ZFI sin importar espacios/saltos
+    // Nº factura Amazon España: siempre empieza por ES + alfanumérico (ES600006K38ZFI, ES6HH16ABEI…)
+    // Cubrimos todos los formatos conocidos con una única búsqueda de "ES[a-z0-9]+" cerca del label
     const numM =
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,50}?\b(ES[A-Z0-9]{5,25})\b/i) ??
       text.match(/n[uú]mero\s+de\s+la\s+factura\s*([A-Z0-9][\w\-]{3,25})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,5}\n\s*([A-Z0-9][\w\-]{3,25})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?([A-Z0-9]{2}[\w\-]{3,20})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?(\d{5,20})/i)
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?([A-Z0-9]{2}[\w\-]{3,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
 
     // Fecha — misma línea o siguiente
@@ -535,14 +535,22 @@ export function extractFromText(rawText: string): InvoiceData {
     )
     const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
     // Dividir por etiquetas de documento pegadas y quedarse con el fragmento que tiene la forma jurídica
-    const DOC_SPLIT = /CLIENTE\s*|N[UÚ]MERO\s*|FECHA\s*|P[AÁ]G\.?\s*|FACTURA\s*|VENDEDOR\s*|EMISOR\s*|DATOS\s*|REF\.?\s*|C[OÓ]D\.?\s*|PROVEEDOR\s*|RAZ[OÓ]N\s+SOCIAL\s*|DIRECCI[OÓ]N\s*|MONEDA\s*|CLIENTE\s*/gi
+    // Separadores de etiquetas de documento pegadas en el texto del PDF
+    const DOC_SPLIT = /CLIENTE|N[UÚ]MERO|FECHA|P[AÁ]G\.?|FACTURA|VENDEDOR|EMISOR|DATOS|REF\.?|C[OÓ]D\.?|PROVEEDOR|RAZ[OÓ]N\s+SOCIAL|DIRECCI[OÓ]N|MONEDA/gi
     const legalTestRe = new RegExp(LEGAL_FORMS, "i")
     const allLegal = [...text.matchAll(reLegal)]
       .map((m) => {
         const raw = m[1].trim().replace(/\s+/g, " ")
+        // Dividir por etiquetas; reconstruir el fragmento que contiene la forma jurídica
         const parts = raw.split(DOC_SPLIT).map(p => p.trim()).filter(Boolean)
-        const withLegal = parts.filter(p => legalTestRe.test(p))
-        return (withLegal[withLegal.length - 1] ?? raw).trim()
+        // Juntar fragmentos consecutivos hasta encontrar el que termina en forma jurídica
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const candidate = parts.slice(i).join(" ").trim()
+          if (legalTestRe.test(candidate) && isValidSupplier(candidate)) return candidate
+        }
+        // Fallback: si el raw ya contiene la forma jurídica y es válido, usarlo tal cual
+        const cleanRaw = raw.replace(/^(?:CLIENTE|NÚMERO|FECHA|PÁG\.?\s+|FACTURA|VENDEDOR)\s*/i, "").trim()
+        return cleanRaw
       })
       .filter((n) => isValidSupplier(n))
     const uniqueLegal = [...new Set(allLegal)]
