@@ -217,20 +217,39 @@ export function extractFromText(rawText: string): InvoiceData {
     const dateM = text.match(/fecha\s+de\s+la\s+factura[\s\S]{0,50}?(\d{1,2}\s+\w+\s+\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i)
     if (dateM) result.invoice_date = parseDate(dateM[1].trim())
 
-    // Proveedor: línea debajo de "Vendido por" — sin filtrar aunque sea largo sin espacios
-    const vendidoM = text.match(/vendido\s+por\s*\n?\s*([^\n]{3,100})/i)
-    if (vendidoM) {
-      const name = vendidoM[1].trim().replace(/\s+/g, " ")
-      // Solo excluir si es claramente el nombre del comprador o una URL
-      if (!/^(joanna|juan|maria|jose|pedro)\b/i.test(name) && !/@/.test(name))
-        result.supplier_name = name
+    // Proveedor: varios intentos para manejar el formato Amazon
+    // — mini-box: "Vendido por nombreVendedor" en la misma línea
+    // — tabla:    "Vendido por\nComprador\tComprador\tVendedor" → coger último segmento
+    const BUYER_NAMES = /^(joanna|juan|maria|jose|pedro|avenida|calle|c\/|dirección|si\s+tienes)/i
+    const vendidoMatches = [...text.matchAll(/vendido\s+por\s*([^\n]*)/gi)]
+    for (const m of vendidoMatches) {
+      const sameLine = m[1].trim()
+      if (sameLine && !BUYER_NAMES.test(sameLine) && !/@/.test(sameLine) && !/^https?:/i.test(sameLine)) {
+        result.supplier_name = sameLine.replace(/\s+/g, " ")
+        break
+      }
+      // Si la misma línea está vacía o es del comprador, mirar la línea siguiente
+      const afterIdx = (m.index ?? 0) + m[0].length
+      const nextLine = text.slice(afterIdx).match(/^\n([^\n]{3,150})/)
+      if (nextLine) {
+        const segments = nextLine[1].split(/\t|\s{3,}/)
+        // El vendedor siempre es el último segmento de la fila
+        const lastSeg = segments[segments.length - 1].trim()
+        if (lastSeg && !BUYER_NAMES.test(lastSeg) && !/@/.test(lastSeg) && lastSeg.length > 3) {
+          result.supplier_name = lastSeg
+          break
+        }
+      }
     }
 
-    // NIF del vendedor: "IVA ESW0264006H" (formato EU: 2 letras país + NIF)
-    const vatNumM = text.match(/\bIVA\s+(ES[A-Z0-9]{8,10})\b/gi)
-    if (vatNumM) {
-      // El último suele ser el del vendedor (Amazon), no el del comprador
-      result.supplier_nif = vatNumM[vatNumM.length - 1].replace(/^IVA\s+/i, "")
+    // NIF del vendedor: preferir el que aparece en la sección "Vendido por"
+    const vendorSection = text.match(/vendido\s+por[\s\S]{0,400}/i)?.[0] ?? ""
+    const vendorNifM = vendorSection.match(/\bIVA\s+(ES[A-Z0-9]{8,11})\b/i)
+    if (vendorNifM) {
+      result.supplier_nif = vendorNifM[1]
+    } else {
+      const vatNumM = text.match(/\bIVA\s+(ES[A-Z0-9]{8,11})\b/gi)
+      if (vatNumM) result.supplier_nif = vatNumM[0].replace(/^IVA\s+/i, "")
     }
 
     // Total: "Total pendiente  22,87 €"
