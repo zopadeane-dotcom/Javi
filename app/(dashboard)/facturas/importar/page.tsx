@@ -26,7 +26,7 @@ interface InvoiceRow {
   supplier_name?: string; supplier_nif?: string; invoice_number?: string
   invoice_date?: string; base_amount?: number; vat_rate?: number
   total_amount?: number; concept?: string; supplier_id?: string
-  saved?: boolean; expanded?: boolean
+  saved?: boolean; expanded?: boolean; rawText?: string
 }
 
 const fmt = (n?: number) => n != null ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n) : "—"
@@ -225,9 +225,9 @@ export default function ImportarFacturasPage() {
             )
             if (found) supplier_id = found.id
           }
-          updated[i] = { ...updated[i], status: "done", supplier_id, ...d }
+          updated[i] = { ...updated[i], status: "done", supplier_id, rawText: json.rawText, ...d }
         } else {
-          updated[i] = { ...updated[i], status: json.scanned ? "error" : "done", error: json.scanned ? "PDF escaneado" : undefined }
+          updated[i] = { ...updated[i], status: json.scanned ? "error" : "done", rawText: json.rawText, error: json.scanned ? "PDF escaneado" : undefined }
         }
       } catch { updated[i] = { ...updated[i], status: "error", error: "Error al leer" } }
       setRows([...updated])
@@ -563,6 +563,14 @@ export default function ImportarFacturasPage() {
                       <label className="text-xs font-semibold text-muted-foreground">Base imponible (€)</label>
                       <Input type="number" step="0.01" value={row.base_amount ?? ""} onChange={(e) => updateRow(row.id, { base_amount: parseFloat(e.target.value) })} className="h-8 text-xs" />
                     </div>
+                    {row.rawText && (
+                      <div className="col-span-2 space-y-1">
+                        <details>
+                          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">🔍 Ver texto extraído del PDF (debug)</summary>
+                          <pre className="mt-1 text-[10px] bg-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">{row.rawText}</pre>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
