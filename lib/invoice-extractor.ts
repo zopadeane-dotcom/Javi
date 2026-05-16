@@ -308,7 +308,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // Layout tabla: "FACTURA Nº   FECHA\n2026053   07/05/2026" — número en línea siguiente
     // [^\S\n]+ evita cruzar saltos de línea (no mezclar con "FACTURA\nNº F01947268")
     /factura[^\S\n]+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{0,20})/im,
-    // "Factura nº / Factura #"
+    // "Factura nº / Factura #" — incluye formatos con doble barra (2026//2123)
     /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{0,20}?)(?:\s{2,}|\n|$)/im,
     /factura\s*#\s*([A-Z0-9][\w\-\/\.]*)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
@@ -516,20 +516,40 @@ export function extractFromText(rawText: string): InvoiceData {
     }
   }
 
-  // B: fallback — primera línea de la zona emisor que parezca un nombre
+  // B: fallback — primera línea de la zona emisor que parezca un nombre (≥2 palabras)
+  const LINE_KEYWORDS = /^(factura|fecha|n[uú]m|p[aá]g|total|base|iva|ref|tel[eé]?f?|fax|email|e-mail|web|cif|nif|c\.i\.f|n\.i\.f|ctra|carretera|avda|calle|c\/|pol[íi]gono|apdo|c\.p\.|transporte|pago|banco|iban|bic|comercial|compras|ventas|albar[aá]n|pedido|moneda|euro|página)/i
   if (!result.supplier_name) {
     const candidate = searchLines.find((l) => {
       if (l.length < 4 || l.length > 70) return false
       if (/^\d/.test(l)) return false
       if (l.trim().split(/\s+/).length < 2) return false
-      if (/^(factura|fecha|n[uú]m|p[aá]g|total|base|iva|ref|tel[eé]?f?|fax|email|e-mail|web|cif|nif|c\.i\.f|n\.i\.f|ctra|carretera|avda|calle|c\/|pol[íi]gono|apdo|c\.p\.)/i.test(l)) return false
+      if (LINE_KEYWORDS.test(l)) return false
       if (/\bKM\.?\s*\d/i.test(l)) return false
       if (/\b\d{5}\b/.test(l)) return false
-      if (/^\+?\d[\d\s\-().]{6,}$/.test(l)) return false  // teléfono
-      if (/@/.test(l)) return false  // email
+      if (/^\+?\d[\d\s\-().]{6,}$/.test(l)) return false
+      if (/@/.test(l)) return false
       return isValidSupplier(l)
     })
     if (candidate) result.supplier_name = candidate
+  }
+
+  // B2: marca de una sola palabra (UNIC, MAKRO, LIDL…) o dos líneas consecutivas
+  if (!result.supplier_name) {
+    for (let i = 0; i < searchLines.length; i++) {
+      const l = searchLines[i]
+      if (l.length < 2 || l.length > 30) continue
+      if (/^\d/.test(l) || /@/.test(l) || LINE_KEYWORDS.test(l)) continue
+      if (/\b\d{5}\b/.test(l) || /^\+?\d[\d\s\-().]{5,}$/.test(l)) continue
+      // Intentar combinar con la línea siguiente si ambas son cortas
+      const next = searchLines[i + 1] ?? ""
+      const combined = next && next.length < 25 && !/^\d/.test(next) && !LINE_KEYWORDS.test(next)
+        ? `${l} ${next}`.trim()
+        : l
+      if (isValidSupplier(combined) && combined.length >= 3) {
+        result.supplier_name = combined
+        break
+      }
+    }
   }
 
   // ════════════════════════════════════════════════════════
