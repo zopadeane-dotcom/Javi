@@ -216,8 +216,10 @@ export function extractFromText(rawText: string): InvoiceData {
   // número y fecha en cuadro superior, NIF con prefijo EU (ESWxxxxxxx)
   // ════════════════════════════════════════════════════════
   if (/amazon/i.test(text)) {
-    // Nº factura — puede estar en la misma línea o en la siguiente
-    const numM = text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,10}?([A-Z0-9][A-Z0-9\-]{4,20})/i)
+    // Nº factura — buscar "Número de la factura" seguido del número (con o sin separador)
+    const numM =
+      text.match(/n[uú]mero\s+de\s+la\s+factura\s*([A-Z0-9][\w\-]{3,25})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,5}([A-Z]{1,3}\d[\w\-]{3,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
 
     // Fecha — misma línea o siguiente
