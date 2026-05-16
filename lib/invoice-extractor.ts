@@ -534,15 +534,15 @@ export function extractFromText(rawText: string): InvoiceData {
       "gm"
     )
     const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
-    // Limpiar prefijos de etiquetas PDF pegadas ("CLIENTE NúmeroFecha Pág. EMPRESA SL")
-    const DOC_LABELS = /^(?:cliente[s]?|n[uú]mero|fecha|p[aá]g\.?|factura|proveedor|emisor|datos|ref\.?|c[oó]d\.?|page|vendedor|raz[oó]n\s+social|direcci[oó]n)\s+/gi
+    // Dividir por etiquetas de documento pegadas y quedarse con el fragmento que tiene la forma jurídica
+    const DOC_SPLIT = /CLIENTE\s*|N[UÚ]MERO\s*|FECHA\s*|P[AÁ]G\.?\s*|FACTURA\s*|VENDEDOR\s*|EMISOR\s*|DATOS\s*|REF\.?\s*|C[OÓ]D\.?\s*|PROVEEDOR\s*|RAZ[OÓ]N\s+SOCIAL\s*|DIRECCI[OÓ]N\s*|MONEDA\s*|CLIENTE\s*/gi
+    const legalTestRe = new RegExp(LEGAL_FORMS, "i")
     const allLegal = [...text.matchAll(reLegal)]
       .map((m) => {
-        let name = m[1].trim().replace(/\s+/g, " ")
-        // Quitar etiquetas de documento que se hayan colado al principio
-        let prev = ""
-        while (prev !== name) { prev = name; name = name.replace(DOC_LABELS, "").trim() }
-        return name
+        const raw = m[1].trim().replace(/\s+/g, " ")
+        const parts = raw.split(DOC_SPLIT).map(p => p.trim()).filter(Boolean)
+        const withLegal = parts.filter(p => legalTestRe.test(p))
+        return (withLegal[withLegal.length - 1] ?? raw).trim()
       })
       .filter((n) => isValidSupplier(n))
     const uniqueLegal = [...new Set(allLegal)]
