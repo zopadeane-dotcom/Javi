@@ -86,7 +86,7 @@ function polishRow(row: InvoiceRow): InvoiceRow {
     /^ID\s/i.test(supplierName) ||
     /ID\s+de\s+(comerciante|referencia|pago)|merchant\s+ID|IVA\s+exclu[ií]do|IVA\s+inclu[ií]do/i.test(supplierName) ||
     /^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.)/i.test(supplierName) ||
-    /^[A-Za-z0-9]{8,}$/.test(supplierName)
+    /^[A-Za-z0-9]{8,}$/.test(supplierName) && /\d/.test(supplierName)
   ) {
     result.supplier_name = undefined
   }
