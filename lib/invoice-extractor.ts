@@ -91,12 +91,18 @@ function parseDate(s: string): string | undefined {
   // YYYY/MM/DD o YYYY-MM-DD
   const iso = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
   if (iso) { const mo=iso[2].padStart(2,"0"),d=iso[3].padStart(2,"0"); if(+mo<=12&&+d<=31) return `${iso[1]}-${mo}-${d}` }
-  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (también año de 2 dígitos: 11/05/26 → 2026)
   const short = s.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/)
   if (short) {
     const y = short[3].length===2 ? `20${short[3]}` : short[3]
     const mo=short[2].padStart(2,"0"), d=short[1].padStart(2,"0")
     if (+mo<=12 && +d<=31) return `${y}-${mo}-${d}`
+  }
+  // "Mayo 2026" / "mayo de 2026" — solo mes y año (día 1 por defecto)
+  const monthYear = s.match(/^(\w{4,12})\s+(?:de\s+)?(\d{4})$/)
+  if (monthYear) {
+    const m2 = M[monthYear[1].toLowerCase()]
+    if (m2) return `${monthYear[2]}-${m2}-01`
   }
   return undefined
 }
@@ -298,26 +304,28 @@ export function extractFromText(rawText: string): InvoiceData {
   // ════════════════════════════════════════════════════════
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
-    /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{1,20})/i,
+    /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
     // Layout tabla: "FACTURA Nº   FECHA\n2026053   07/05/2026" — número en línea siguiente
     // [^\S\n]+ evita cruzar saltos de línea (no mezclar con "FACTURA\nNº F01947268")
-    /factura[^\S\n]+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
+    /factura[^\S\n]+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{0,20})/im,
     // "Factura nº / Factura #"
-    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
-    /factura\s*#\s*([A-Z0-9][\w\-\/\.]+)/i,
+    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{0,20}?)(?:\s{2,}|\n|$)/im,
+    /factura\s*#\s*([A-Z0-9][\w\-\/\.]*)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     // "Fra. nº" / "Nº fra."
-    /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{1,15}?)(?:\s{2,}|\n|$)/im,
-    /n[uúº°]\s*\.?\s*fra[:.]\s*([A-Z0-9][\w\-\/]{1,15})/i,
+    /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{0,15}?)(?:\s{2,}|\n|$)/im,
+    /n[uúº°]\s*\.?\s*fra[:.]\s*([A-Z0-9][\w\-\/]{0,15})/i,
+    // "Nro.", "Núm.", "No.", "N°" — sinónimos que usan autónomos e improvisadores
+    /\b(?:nro|n[uú]m|n[°o])\.?\s*[:\-]?\s*([A-Z0-9][\w\-\/\.]{0,20})/i,
     // Serie + número: "A-001", "F/2024/001"
     /\b(F[\/\-]\d{2,4}[\/\-]\d{2,6})\b/,
     /\bserie[:\s]+([A-Z]{1,3})\s+n[uúº°]?[:\s]*(\d{1,6})/i,
     // Ticket / Recibo / Receipt
-    /(?:ticket|recibo|receipt|albar[aá]n)\s*n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/]{1,20})/i,
+    /(?:ticket|recibo|receipt|albar[aá]n)\s*n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/]{0,20})/i,
     // INV-xxx / FAC-xxx / REC-xxx
     /\b((?:INV|FAC|FACT|REC|ORD)[_\-][A-Z0-9][\w\-]{1,20})\b/i,
     // "Número 2600294" — sin palabra "factura" delante (formato tabla)
-    /\bn[uú]mero\s+(?!de\b|factura\b)([A-Z0-9][\d\w\-\/\.]{3,20})\b/i,
+    /\bn[uú]mero\s+(?!de\b|factura\b)([A-Z0-9][\d\w\-\/\.]{0,20})\b/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
@@ -344,15 +352,19 @@ export function extractFromText(rawText: string): InvoiceData {
     // Etiquetas legales exactas (mayor prioridad)
     /fecha\s+de\s+(?:expedici[oó]n|emisi[oó]n|factura)[:\s]*(.{6,20})/i,
     /fecha\s+(?:de\s+)?(?:expedici[oó]n|emisi[oó]n)[:\s]*(.{6,20})/i,
+    // "Emitida el / Emitido el / Expedida el"
+    /(?:emitid[ao]|expedid[ao])\s+el\s+(.{6,20})/i,
+    // "A fecha de"
+    /a\s+fecha\s+de[:\s]+(.{6,20})/i,
     // "Fecha 11/05/2026" — sin dos puntos (formato tabla)
     /\bfecha\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i,
-    // "Fecha:" genérico
-    /fecha\s*[:\-]\s*(.{6,20})/i,
-    // "Date:" / "Invoice date:" en inglés (Amazon, plataformas internacionales)
+    // "Fecha:" genérico — también captura año de 2 dígitos (11/05/26)
+    /fecha\s*[:\-]\s*(.{5,20})/i,
+    // "Date:" / "Invoice date:" en inglés
     /invoice\s+date[:\s]+(.{6,20})/i,
     /order\s+date[:\s]+(.{6,20})/i,
     /\bdate[:\s]+(.{6,20})/i,
-    // "Fecha de operación" / "Fecha de servicio"
+    // "Fecha de operación / servicio / entrega"
     /fecha\s+(?:de\s+)?(?:operaci[oó]n|servicio|entrega)[:\s]*(.{6,20})/i,
   ]
   for (const pat of datePatterns) {
@@ -386,8 +398,13 @@ export function extractFromText(rawText: string): InvoiceData {
     /tipo\s+impositivo[:\s]+(\d+)[,.]?\d*\s*%/i,
     /iva\s+(\d+)[,.]?\d*\s*%/i,
     /(\d+)[,.]?\d*\s*%\s+(?:de\s+)?iva/i,
+    // "10 %" / "10,00 %" con espacio antes del símbolo
     /\b(21|10|4)\s*%/,
+    // "IVA (10%)" / "IVA[10%]"
+    /iva\s*[\(\[]\s*(\d+)[,.]?\d*\s*%/i,
   ]
+  // "exento" / "exenta" → 0% IVA
+  if (!result.vat_rate && /\bexent[ao]\b/i.test(text)) result.vat_rate = 0
   for (const pat of vatPatterns) {
     const m = text.match(pat)
     if (m) {
@@ -401,10 +418,12 @@ export function extractFromText(rawText: string): InvoiceData {
   //    RD 1619/2012 art.6.1e-g
   // ════════════════════════════════════════════════════════
   // Intentar primero con etiquetas legales directas
-  const baseLabelled = text.match(/base\s+imponible[^0-9\n]{0,20}(\d[\d.,]*)/i)
-  const vatLabelled = text.match(/cuota\s+(?:de\s+)?(?:iva|tributaria|impuesto)[^0-9\n]{0,20}(\d[\d.,]*)/i)
-  const totalLabelled = text.match(/(?:total\s+(?:factura|a\s+pagar|importe)|importe\s+total)[^0-9\n]{0,15}(\d[\d.,]*)/i)
-    ?? text.match(/\bTOTAL\s+(\d[\d.,€\s]*)/i)
+  const baseLabelled = text.match(/(?:base\s+imponible|subtotal\s+neto|importe\s+neto|base)[^0-9\n]{0,20}(\d[\d.,]*)/i)
+  const vatLabelled = text.match(/(?:cuota\s+(?:de\s+)?(?:iva|tributaria|impuesto)|iva\s+repercutido)[^0-9\n]{0,20}(\d[\d.,]*)/i)
+  const totalLabelled =
+    text.match(/(?:total\s+(?:factura|a\s+pagar|importe)|importe\s+total)[^0-9\n]{0,15}(\d[\d.,]*)/i) ??
+    text.match(/total\s+(?:con\s+iva|iva\s+incluido?)[^0-9\n]{0,15}(\d[\d.,]*)/i) ??
+    text.match(/\bTOTAL\b[^\d\n]{0,10}(\d[\d.,]+)/i)
 
   if (baseLabelled && totalLabelled) {
     const base = parseNum(baseLabelled[1])
