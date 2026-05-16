@@ -313,13 +313,14 @@ export function extractFromText(rawText: string): InvoiceData {
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
-    // Layout tabla: "FACTURA Nº   FECHA\n2026053   07/05/2026" — número en línea siguiente
-    // [^\S\n]+ evita cruzar saltos de línea (no mezclar con "FACTURA\nNº F01947268")
-    /factura[^\S\n]+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{0,20})/im,
-    // "Factura nº / Factura #" — incluye formatos con doble barra (2026//2123)
-    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{0,20}?)(?:\s{2,}|\n|$)/im,
+    // "Factura nº / Factura #" misma línea — ANTES del patrón de línea siguiente
+    // Cubre "Factura Nº 2026//2123", "Factura nº F01947268", etc.
+    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/\.]{0,20}?)(?:\s{2,}|\n|$)/im,
     /factura\s*#\s*([A-Z0-9][\w\-\/\.]*)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
+    // Layout tabla CRISTAMAR: "FACTURA Nº   FECHA\n2026053" — número en línea siguiente
+    // Solo cuando la misma línea de "Nº" acaba en etiqueta (FECHA/CÓDIGO) sin dígitos propios
+    /factura[^\S\n]+n[uúº°]?[^\S\n]*(?:fecha|c[oó]d[a-z]*|p[aá]g[a-z]*)[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
     // "Fra. nº" / "Nº fra."
     /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{0,15}?)(?:\s{2,}|\n|$)/im,
     /n[uúº°]\s*\.?\s*fra[:.]\s*([A-Z0-9][\w\-\/]{0,15})/i,
