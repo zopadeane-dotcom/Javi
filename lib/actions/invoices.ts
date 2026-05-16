@@ -94,6 +94,29 @@ export async function createInvoice(formData: FormData) {
   return { success: true }
 }
 
+export async function saveOtherDocument(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "No autenticado" }
+
+  const { data: profile } = await supabase
+    .from("profiles").select("business_id").eq("id", user.id).single()
+  if (!profile?.business_id) return { error: "Negocio no encontrado" }
+
+  const { error } = await supabase.from("other_documents").insert({
+    business_id: profile.business_id,
+    original_filename: formData.get("original_filename") as string,
+    detected_type: (formData.get("detected_type") as string) || null,
+    reason: (formData.get("reason") as string) || null,
+    file_url: (formData.get("file_url") as string) || null,
+    supplier_name: (formData.get("supplier_name") as string) || null,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath("/facturas")
+  return { success: true }
+}
+
 export async function createSupplier(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

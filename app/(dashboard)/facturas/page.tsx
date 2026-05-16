@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Plus, FileText, FolderOpen, TrendingUp, Receipt, BadgePercent, Clock, ArrowRight } from "lucide-react"
+import { Plus, FileText, FolderOpen, TrendingUp, Receipt, BadgePercent, Clock, ArrowRight, Inbox } from "lucide-react"
 
 function formatEur(n: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
@@ -56,6 +56,14 @@ export default async function FacturasPage({
   }
 
   const { data: invoices } = await query
+
+  // Otros documentos (no facturas de proveedor)
+  const { data: otherDocs } = await supabase
+    .from("other_documents")
+    .select("id, original_filename, detected_type, reason, supplier_name, created_at")
+    .eq("business_id", profile.business_id!)
+    .order("created_at", { ascending: false })
+    .limit(20)
 
   const totalBase = invoices?.reduce((s, i) => s + i.base_amount, 0) ?? 0
   const totalVat = invoices?.reduce((s, i) => s + i.vat_amount, 0) ?? 0
@@ -220,6 +228,47 @@ export default async function FacturasPage({
           </div>
         )}
       </div>
+
+      {/* Otros documentos */}
+      {otherDocs && otherDocs.length > 0 && (
+        <div className="rounded-2xl overflow-hidden">
+          <div className="bg-emerald-600 px-5 py-4 flex items-center gap-3">
+            <Inbox className="h-5 w-5 text-white shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-white">Otros documentos</p>
+              <p className="text-xs text-emerald-100 mt-0.5">
+                Documentos importados que no son facturas de proveedor — aquí no se pierden
+              </p>
+            </div>
+            <span className="text-xs font-bold bg-white/20 text-white px-2 py-0.5 rounded-full shrink-0">
+              {otherDocs.length}
+            </span>
+          </div>
+          <div className="border border-t-0 border-emerald-200 dark:border-emerald-800/40 bg-emerald-50 dark:bg-emerald-950/20 divide-y divide-emerald-100 dark:divide-emerald-800/30">
+            {otherDocs.map((doc: any) => (
+              <div key={doc.id} className="flex items-start gap-3 px-5 py-3">
+                <FileText className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100 truncate">
+                    {doc.original_filename}
+                  </p>
+                  {doc.reason && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">{doc.reason}</p>
+                  )}
+                  {doc.supplier_name && (
+                    <p className="text-xs text-emerald-500 dark:text-emerald-500 mt-0.5">
+                      Entidad: {doc.supplier_name}
+                    </p>
+                  )}
+                </div>
+                <p className="text-[10px] text-emerald-500 shrink-0 mt-0.5 whitespace-nowrap">
+                  {format(new Date(doc.created_at), "dd/MM/yy")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

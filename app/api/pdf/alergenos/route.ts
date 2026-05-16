@@ -17,12 +17,17 @@ export async function GET(req: NextRequest) {
     supabase.from("businesses").select("name").eq("id", (profile as any).business_id).single(),
   ])
 
-  const buffer = await renderToBuffer(
-    createElement(FichaAlergenosPDF, {
-      products: (products ?? []) as any,
-      business: (business ?? { name: "Mi negocio" }) as any,
-    }) as any
-  )
+  let buffer: Buffer
+  try {
+    buffer = await renderToBuffer(
+      createElement(FichaAlergenosPDF, {
+        products: (products ?? []) as any,
+        business: (business ?? { name: "Mi negocio" }) as any,
+      }) as any
+    )
+  } catch (e: any) {
+    return NextResponse.json({ error: `Error generando PDF: ${e?.message}` }, { status: 500 })
+  }
 
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {

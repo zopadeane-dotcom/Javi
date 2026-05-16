@@ -4,12 +4,12 @@ import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
-import { createInvoice } from "@/lib/actions/invoices"
+import { createInvoice, saveOtherDocument } from "@/lib/actions/invoices"
 import JSZip from "jszip"
 import {
   CheckCircle, AlertCircle, Loader2, ArrowLeft, ArrowRight,
   FileText, ChevronDown, ChevronUp, Mail, HardDrive, Upload,
-  FolderOpen, X, Sparkles, TrendingUp,
+  FolderOpen, X, Sparkles, Inbox,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +27,8 @@ interface InvoiceRow {
   invoice_date?: string; base_amount?: number; vat_rate?: number
   total_amount?: number; concept?: string; supplier_id?: string
   saved?: boolean; expanded?: boolean; rawText?: string
-  documentType?: "invoice" | "income_report"
+  documentType?: "invoice" | "income_report" | "other"
+  detectionReason?: string
 }
 
 const fmt = (n?: number) => n != null ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n) : "—"
@@ -155,6 +156,7 @@ export default function ImportarFacturasPage() {
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
   const [savingProgress, setSavingProgress] = useState(0)
   const [polishProgress, setPolishProgress] = useState(0)
+  const [showOtherModal, setShowOtherModal] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const folderRef = useRef<HTMLInputElement>(null)
   const zipRef = useRef<HTMLInputElement>(null)
@@ -163,6 +165,14 @@ export default function ImportarFacturasPage() {
     createClient().from("suppliers").select("id, name").order("name")
       .then(({ data }) => setSuppliers(data ?? []))
   }, [])
+
+  // Mostrar popup cuando entramos en revisión y hay documentos "otros"
+  useEffect(() => {
+    if (step === "review") {
+      const count = rows.filter((r) => r.documentType === "other").length
+      if (count > 0) setShowOtherModal(true)
+    }
+  }, [step])
 
   async function extractPdfsFromFiles(files: File[]): Promise<File[]> {
     const result: File[] = []
@@ -226,7 +236,7 @@ export default function ImportarFacturasPage() {
             )
             if (found) supplier_id = found.id
           }
-          updated[i] = { ...updated[i], status: "done", supplier_id, rawText: json.rawText, ...d, documentType: d.documentType }
+          updated[i] = { ...updated[i], status: "done", supplier_id, rawText: json.rawText, ...d, documentType: d.documentType, detectionReason: d.detectionReason }
         } else {
           updated[i] = { ...updated[i], status: json.scanned ? "error" : "done", rawText: json.rawText, error: json.scanned ? "PDF escaneado" : undefined }
         }
@@ -289,19 +299,74 @@ export default function ImportarFacturasPage() {
     toast.success(`¡${saved} factura${saved !== 1 ? "s" : ""} importada${saved !== 1 ? "s" : ""}!`)
   }
 
-  function saveAsVentas() {
-    toast.success("Próximamente disponible — Ve a Ventas para registrarlos manualmente")
-    router.push("/ventas")
+  async function saveOtherDocs() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = user
+      ? await supabase.from("profiles").select("business_id").eq("id", user.id).single()
+      : { data: null }
+
+    let saved = 0
+    for (const row of otherRows) {
+      let fileUrl: string | undefined
+      if (profile?.business_id) {
+        const ext = row.file.name.split(".").pop() ?? "pdf"
+        const path = `${profile.business_id}/otros/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { error } = await supabase.storage.from("documents").upload(path, row.file)
+        if (!error) fileUrl = path
+      }
+      const fd = new FormData()
+      fd.append("original_filename", row.file.name)
+      if (row.detectionReason) fd.append("reason", row.detectionReason)
+      if (row.documentType) fd.append("detected_type", row.documentType)
+      if (fileUrl) fd.append("file_url", fileUrl)
+      if (row.supplier_name) fd.append("supplier_name", row.supplier_name)
+      const res = await saveOtherDocument(fd)
+      if (!res?.error) saved++
+    }
+    toast.success(`${saved} documento${saved !== 1 ? "s" : ""} guardado${saved !== 1 ? "s" : ""} en Otros documentos`)
   }
 
-  const invoiceRows = rows.filter((r) => r.documentType !== "income_report")
-  const incomeRows = rows.filter((r) => r.documentType === "income_report")
+  const invoiceRows = rows.filter((r) => r.documentType !== "income_report" && r.documentType !== "other")
+  const otherRows = rows.filter((r) => r.documentType === "other" || r.documentType === "income_report")
   const readyCount = invoiceRows.filter((r) => r.status === "done" && r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_id || r.supplier_name)).length
   const src = SOURCES[source]
   const SrcIcon = src.icon
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+
+      {/* ── MODAL: documentos que no son facturas ── */}
+      {showOtherModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card rounded-2xl border shadow-2xl p-6 max-w-sm mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+                <Inbox className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="font-bold">Documentos detectados</p>
+                <p className="text-xs text-muted-foreground">No son facturas de proveedor</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Se han detectado <strong className="text-foreground">{otherRows.length} documento{otherRows.length !== 1 ? "s" : ""}</strong> que no son facturas de proveedor.
+              Los enviaremos a <strong className="text-emerald-700 dark:text-emerald-400">Otros documentos</strong> dentro del apartado de Facturas para que no se pierdan.
+            </p>
+            <ul className="space-y-1">
+              {otherRows.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate">{r.file.name}</span>
+                </li>
+              ))}
+            </ul>
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowOtherModal(false)}>
+              Entendido
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Cabecera */}
       <div className="flex items-center gap-3">
@@ -521,36 +586,39 @@ export default function ImportarFacturasPage() {
             </Button>
           </div>
 
-          {/* Sección informes de ventas */}
-          {incomeRows.length > 0 && (
-            <div className="rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4 space-y-3">
+          {/* Sección otros documentos */}
+          {otherRows.length > 0 && (
+            <div className="rounded-2xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
-                  <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+                  <Inbox className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-indigo-800 dark:text-indigo-200">Registros de ventas detectados</p>
-                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    Estos documentos son informes de tus ingresos, no facturas de proveedor. Se guardarán en el módulo de Ventas.
+                  <p className="font-bold text-emerald-800 dark:text-emerald-200">Otros documentos detectados</p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    Estos documentos no son facturas de proveedor y se guardarán en <strong>Otros documentos</strong> dentro del apartado de Facturas.
                   </p>
                 </div>
               </div>
               <div className="space-y-1.5">
-                {incomeRows.map((row) => (
-                  <div key={row.id} className="flex items-center gap-3 rounded-xl bg-indigo-100/60 dark:bg-indigo-900/20 px-3 py-2">
-                    <TrendingUp className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                    <span className="text-xs flex-1 truncate">{row.concept ?? row.file.name}</span>
-                    {row.total_amount && <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">{fmt(row.total_amount)}</span>}
+                {otherRows.map((row) => (
+                  <div key={row.id} className="flex flex-col gap-0.5 rounded-xl bg-emerald-100/60 dark:bg-emerald-900/20 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Inbox className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-xs flex-1 truncate font-medium">{row.file.name}</span>
+                    </div>
+                    {row.detectionReason && (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 pl-5">{row.detectionReason}</p>
+                    )}
                   </div>
                 ))}
               </div>
               <Button
-                variant="outline"
-                className="w-full border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
-                onClick={saveAsVentas}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={saveOtherDocs}
               >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Guardar en Ventas
+                <Inbox className="h-4 w-4 mr-2" />
+                Guardar en Otros documentos
               </Button>
             </div>
           )}

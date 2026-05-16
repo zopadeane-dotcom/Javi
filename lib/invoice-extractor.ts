@@ -13,7 +13,8 @@ export interface InvoiceData {
   vat_amount?: number
   total_amount?: number
   concept?: string
-  documentType?: "invoice" | "income_report"
+  documentType?: "invoice" | "income_report" | "other"
+  detectionReason?: string
 }
 
 // ── Parsear número español/inglés → float
@@ -161,6 +162,45 @@ export function extractFromText(rawText: string): InvoiceData {
     }
 
     return result
+  }
+
+  // ════════════════════════════════════════════════════════
+  // MODO MAKRO — detectado por "makro" en el texto
+  // Formato especial: NIF con guiones (A-28/647451), número de factura
+  // largo con paréntesis y barras, IVA en formato "N=21,00%"
+  // ════════════════════════════════════════════════════════
+  if (/makro/i.test(text)) {
+    result.supplier_name = "Makro"
+
+    // NIF: "NIF: A-28/647451" → limpiar guiones y barras → A28647451
+    const makroNifM = text.match(/NIF[:\s.]*([A-Z][\-\d\/]{5,15})/i)
+    if (makroNifM) result.supplier_nif = makroNifM[1].replace(/[\-\/]/g, "")
+
+    // Nº factura: "Factura    0/0(042)0051/(2026)000183"
+    const makroInvM = text.match(/factura\s+(\d[\d\/\(\)]{5,35})/im)
+    if (makroInvM) result.invoice_number = makroInvM[1].trim()
+
+    // Fecha de venta: "Fecha de venta:     16/04/2026"
+    const makroDateM = text.match(/fecha\s+de\s+venta[:\s]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i)
+    if (makroDateM) result.invoice_date = parseDate(makroDateM[1])
+
+    // Total: "Total a pagar   145,14"
+    const makroTotalM = text.match(/total\s+a\s+pagar\s+([0-9.,]+)/i)
+    if (makroTotalM) result.total_amount = parseNum(makroTotalM[1])
+
+    // IVA: "119,95   2=21,00%   25,19" (base, código=tipo%, cuota)
+    const makroVatM = text.match(/(\d[\d.,]+)\s+\d?=?(\d{1,2})[,\.]\d+%\s+(\d[\d.,]+)/)
+    if (makroVatM) {
+      result.base_amount = parseNum(makroVatM[1])
+      result.vat_rate = parseInt(makroVatM[2])
+      result.vat_amount = parseNum(makroVatM[3])
+    }
+
+    // Concepto: primera línea de descripción de artículo
+    const makroDescM = text.match(/GASTOS\s+DE\s+ENVIO|METRO\s+PROFESSIONAL|([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑA-Za-záéíóúñ\s]{4,60})\s+\d+,\d{2}/i)
+    if (makroDescM) result.concept = makroDescM[0].split(/\s{2,}/)[0].trim()
+
+    if (result.total_amount && result.invoice_date) return result
   }
 
   // ════════════════════════════════════════════════════════
@@ -454,6 +494,42 @@ export function extractFromText(rawText: string): InvoiceData {
       !/@/.test(l)
     )
     if (productLine) result.concept = productLine
+  }
+
+  // ════════════════════════════════════════════════════════
+  // CLASIFICACIÓN FINAL — documentos que no son facturas de proveedor
+  // ════════════════════════════════════════════════════════
+  const confidence = [
+    result.invoice_number, result.invoice_date, result.total_amount,
+    result.base_amount, result.supplier_name,
+  ].filter(Boolean).length
+
+  const OTHER_KEYWORDS: [RegExp, string][] = [
+    [/\balbar[aá]n\b/i,           "albarán (nota de entrega)"],
+    [/\bnota\s+de\s+entrega\b/i,  "nota de entrega"],
+    [/\bpresupuesto\b/i,          "presupuesto"],
+    [/\boferta\s+comercial\b/i,   "oferta comercial"],
+    [/\bproforma\b/i,             "factura proforma"],
+    [/\bextracto\s+bancario\b/i,  "extracto bancario"],
+    [/\bn[oó]mina\b/i,            "nómina"],
+    [/\bcontrato\b/i,             "contrato"],
+    [/\bcertificado\b/i,          "certificado"],
+  ]
+
+  // Sólo marcamos "other" si: pocas campos + palabra clave explícita + sin "factura"
+  if (confidence < 2 && !/factura/i.test(text)) {
+    for (const [re, label] of OTHER_KEYWORDS) {
+      if (re.test(text)) {
+        result.documentType = "other"
+        result.detectionReason = `Documento identificado como ${label}, no como factura de proveedor`
+        return result
+      }
+    }
+    // Sin campos clave y sin estructura de factura → otros
+    if (confidence === 0) {
+      result.documentType = "other"
+      result.detectionReason = "No se han detectado campos de factura en este documento"
+    }
   }
 
   return result

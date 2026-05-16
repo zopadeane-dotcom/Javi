@@ -33,14 +33,19 @@ export async function GET(req: NextRequest) {
 
   if (!employee || !business) return NextResponse.json({ error: "Datos no encontrados" }, { status: 404 })
 
-  const buffer = await renderToBuffer(
-    createElement(InformeFichajesPDF, {
-      employee: employee as any,
-      business: business as any,
-      records: (records ?? []) as any,
-      month: mes,
-    }) as any
-  )
+  let buffer: Buffer
+  try {
+    buffer = await renderToBuffer(
+      createElement(InformeFichajesPDF, {
+        employee: employee as any,
+        business: business as any,
+        records: (records ?? []) as any,
+        month: mes,
+      }) as any
+    )
+  } catch (e: any) {
+    return NextResponse.json({ error: `Error generando PDF: ${e?.message}` }, { status: 500 })
+  }
 
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
