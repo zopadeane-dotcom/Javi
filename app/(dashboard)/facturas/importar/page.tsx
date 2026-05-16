@@ -520,14 +520,12 @@ export default function ImportarFacturasPage() {
               const missingDate = !row.invoice_date
               const hasWarnings = missingNum || missingDate || !row.supplier_name
               return (
-              <div key={row.id} className={`rounded-2xl border overflow-hidden ${
-                row.status === "error"
-                  ? "border-orange-200 dark:border-orange-800/40 bg-orange-50/40 dark:bg-orange-950/20"
-                  : hasWarnings
-                  ? "border-amber-200 dark:border-amber-800/40"
-                  : "bg-card"
-              }`}>
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/20 transition-colors"
+              <div key={row.id} className={[
+                "rounded-2xl border overflow-hidden",
+                row.status === "error" ? "border-orange-300 bg-orange-50 dark:bg-orange-950/20" :
+                hasWarnings ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20" : "bg-card"
+              ].join(" ")}>
+                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-black/5 transition-colors"
                   onClick={() => updateRow(row.id, { expanded: !row.expanded })}>
                   {row.status === "done" && !hasWarnings
                     ? <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
@@ -537,19 +535,18 @@ export default function ImportarFacturasPage() {
                       <p className="text-sm font-semibold truncate">
                         {row.supplier_name
                           ? row.supplier_name
-                          : <span className="text-amber-600 dark:text-amber-400">⚠ Proveedor no detectado</span>}
+                          : <span className="text-amber-700 dark:text-amber-400">⚠ Proveedor no detectado</span>}
                       </p>
-                      {/* Enlace para abrir el PDF original */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const url = URL.createObjectURL(row.file)
-                          window.open(url, "_blank")
-                        }}
-                        className="shrink-0 text-[10px] font-semibold text-primary/60 hover:text-primary underline underline-offset-2 transition-colors"
+                      {/* Enlace directo al PDF — abre en pestaña nueva */}
+                      <a
+                        href={URL.createObjectURL(row.file)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-[10px] font-bold text-primary hover:text-primary/70 underline underline-offset-2 transition-colors"
                       >
                         Ver PDF
-                      </button>
+                      </a>
                     </div>
                     <p className="text-xs mt-0.5 flex items-center gap-1.5 flex-wrap">
                       <span className={missingNum ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}>
