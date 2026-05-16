@@ -54,6 +54,9 @@ function findAmounts(amounts: number[], vatRateHint?: number) {
       const vat1 = parseFloat((total - base1).toFixed(2))
       const bM = amounts.find((a) => Math.abs(a - base1) <= TOL)
       const vM = amounts.find((a) => Math.abs(a - vat1) <= TOL)
+      // IVA 0%: base = total, vat = 0 — caso especial válido
+      if (rate === 0 && bM && Math.abs(bM - total) <= TOL)
+        return { base: bM, vat: 0, total, rate }
       if (bM && vM && Math.abs(bM - total) > TOL && Math.abs(vM - total) > TOL)
         return { base: bM, vat: vM, total, rate }
 
