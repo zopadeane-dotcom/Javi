@@ -17,6 +17,7 @@ import {
   X,
   Sun,
   Moon,
+  TrendingUp,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
@@ -31,6 +32,7 @@ const adminNav = [
   { href: "/trabajadores", label: "Trabajadores", icon: Users, tour: "trabajadores", color: "bg-violet-500/20 text-violet-300", activeColor: "bg-violet-500 text-white" },
   { href: "/trabajadores/horarios", label: "Fichajes", icon: Clock, tour: "fichajes", color: "bg-amber-500/20 text-amber-300", activeColor: "bg-amber-500 text-white" },
   { href: "/facturas", label: "Facturas", icon: FileText, tour: "facturas", color: "bg-sky-500/20 text-sky-300", activeColor: "bg-sky-500 text-white" },
+  { href: "/ventas", label: "Ventas", icon: TrendingUp, tour: undefined, color: "bg-rose-500/20 text-rose-300", activeColor: "bg-rose-500 text-white" },
   {
     label: "Sanidad",
     icon: ShieldCheck,

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { FileText, TrendingDown, Receipt, Info, ArrowRight, CheckCircle2 } from "lucide-react"
+import { FileText, TrendingDown, TrendingUp, Receipt, Info, ArrowRight, CheckCircle2 } from "lucide-react"
 
 function formatEur(n: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
@@ -49,6 +49,18 @@ export default async function Modelo303Page({
     quarter: number
   }[]
 
+  const { data: salesRaw } = await supabase
+    .from("sales_records")
+    .select("total_sales, vat_amount, quarter")
+    .eq("business_id", profile.business_id!)
+    .eq("year", year)
+
+  const sales = (salesRaw ?? []) as {
+    total_sales: number
+    vat_amount: number
+    quarter: number
+  }[]
+
   const quarters = [1, 2, 3, 4] as const
   const quarterData = quarters.map((q) => {
     const qInvoices = invoices.filter((i) => i.quarter === q)
@@ -57,12 +69,16 @@ export default async function Modelo303Page({
     const vatDeductible = qInvoices
       .filter((i) => i.is_deductible)
       .reduce((s, i) => s + i.vat_amount, 0)
-    return { q, baseTotal, vatTotal, vatDeductible, count: qInvoices.length }
+    const qSales = sales.filter((s) => s.quarter === q)
+    const salesTotal = qSales.reduce((s, r) => s + r.total_sales, 0)
+    const salesVat = qSales.reduce((s, r) => s + r.vat_amount, 0)
+    return { q, baseTotal, vatTotal, vatDeductible, count: qInvoices.length, salesTotal, salesVat }
   })
 
   const yearBase = quarterData.reduce((s, q) => s + q.baseTotal, 0)
   const yearVat = quarterData.reduce((s, q) => s + q.vatTotal, 0)
   const yearDeductible = quarterData.reduce((s, q) => s + q.vatDeductible, 0)
+  const yearSalesVat = quarterData.reduce((s, q) => s + q.salesVat, 0)
   const hasInvoices = invoices.length > 0
 
   return (
@@ -125,7 +141,7 @@ export default async function Modelo303Page({
       </div>
 
       {/* KPIs anuales */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-xl border bg-card p-5 space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground">
             <FileText className="h-4 w-4" />
@@ -140,18 +156,27 @@ export default async function Modelo303Page({
           </div>
           <p className="text-2xl font-bold">{formatEur(yearVat)}</p>
         </div>
-        <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 space-y-1">
-          <div className="flex items-center gap-2 text-green-700">
+        <div className="rounded-xl border-2 border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800/40 p-5 space-y-1">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
             <CheckCircle2 className="h-4 w-4" />
             <p className="text-xs font-medium">IVA deducible {year}</p>
           </div>
-          <p className="text-2xl font-bold text-green-700">{formatEur(yearDeductible)}</p>
+          <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEur(yearDeductible)}</p>
+        </div>
+        <div className="rounded-xl border-2 border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-800/40 p-5 space-y-1">
+          <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
+            <TrendingUp className="h-4 w-4" />
+            <p className="text-xs font-medium">IVA repercutido {year}</p>
+          </div>
+          <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">{formatEur(yearSalesVat)}</p>
         </div>
       </div>
 
       {/* Trimestres */}
       <div className="space-y-3">
-        {quarterData.map(({ q, baseTotal, vatTotal, vatDeductible, count }) => (
+        {quarterData.map(({ q, baseTotal, vatTotal, vatDeductible, count, salesTotal, salesVat }) => {
+          const resultado = salesVat - vatDeductible
+          return (
           <div
             key={q}
             className="rounded-xl border bg-card overflow-hidden"
@@ -167,7 +192,7 @@ export default async function Modelo303Page({
               </Badge>
             </div>
 
-            {/* Filas */}
+            {/* Filas IVA soportado */}
             <div className="divide-y">
               <div className="flex items-center justify-between px-5 py-3 text-sm">
                 <span className="text-muted-foreground">Base imponible de compras</span>
@@ -177,18 +202,49 @@ export default async function Modelo303Page({
                 <span className="text-muted-foreground">IVA soportado (cuotas soportadas)</span>
                 <span className="font-medium">{formatEur(vatTotal)}</span>
               </div>
-              <div className="flex items-center justify-between px-5 py-3 text-sm bg-green-50">
+              <div className="flex items-center justify-between px-5 py-3 text-sm bg-green-50 dark:bg-green-950/20">
                 <div>
-                  <span className="font-semibold text-green-800">IVA deducible</span>
-                  <span className="ml-2 text-xs text-green-600 font-medium bg-green-100 px-2 py-0.5 rounded-full">
+                  <span className="font-semibold text-green-800 dark:text-green-200">IVA deducible</span>
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-medium bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
                     Casilla 28
                   </span>
                 </div>
-                <span className="font-bold text-green-700 text-base">{formatEur(vatDeductible)}</span>
+                <span className="font-bold text-green-700 dark:text-green-300 text-base">{formatEur(vatDeductible)}</span>
+              </div>
+
+              {/* IVA repercutido (ventas) */}
+              <div className="flex items-center justify-between px-5 py-3 text-sm">
+                <span className="text-muted-foreground">Total ventas (IVA repercutido)</span>
+                <span className="font-medium">{formatEur(salesTotal)}</span>
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 text-sm bg-rose-50 dark:bg-rose-950/20">
+                <div>
+                  <span className="font-semibold text-rose-800 dark:text-rose-200">IVA repercutido</span>
+                  <span className="ml-2 text-xs text-rose-600 dark:text-rose-400 font-medium bg-rose-100 dark:bg-rose-900/30 px-2 py-0.5 rounded-full">
+                    Casilla 01/03
+                  </span>
+                </div>
+                <span className="font-bold text-rose-700 dark:text-rose-300 text-base">{formatEur(salesVat)}</span>
+              </div>
+
+              {/* Resultado */}
+              <div className={`flex items-center justify-between px-5 py-3 text-sm ${resultado >= 0 ? "bg-amber-50 dark:bg-amber-950/20" : "bg-blue-50 dark:bg-blue-950/20"}`}>
+                <div>
+                  <span className={`font-bold ${resultado >= 0 ? "text-amber-800 dark:text-amber-200" : "text-blue-800 dark:text-blue-200"}`}>
+                    {resultado >= 0 ? "A pagar" : "A devolver"}
+                  </span>
+                  <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${resultado >= 0 ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"}`}>
+                    IVA rep. − IVA deducible
+                  </span>
+                </div>
+                <span className={`font-bold text-base ${resultado >= 0 ? "text-amber-700 dark:text-amber-300" : "text-blue-700 dark:text-blue-300"}`}>
+                  {formatEur(Math.abs(resultado))}
+                </span>
               </div>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Aviso legal */}

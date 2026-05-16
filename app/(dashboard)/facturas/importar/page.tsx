@@ -9,7 +9,7 @@ import JSZip from "jszip"
 import {
   CheckCircle, AlertCircle, Loader2, ArrowLeft, ArrowRight,
   FileText, ChevronDown, ChevronUp, Mail, HardDrive, Upload,
-  FolderOpen, X, Sparkles,
+  FolderOpen, X, Sparkles, TrendingUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,7 @@ interface InvoiceRow {
   invoice_date?: string; base_amount?: number; vat_rate?: number
   total_amount?: number; concept?: string; supplier_id?: string
   saved?: boolean; expanded?: boolean; rawText?: string
+  documentType?: "invoice" | "income_report"
 }
 
 const fmt = (n?: number) => n != null ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n) : "—"
@@ -225,7 +226,7 @@ export default function ImportarFacturasPage() {
             )
             if (found) supplier_id = found.id
           }
-          updated[i] = { ...updated[i], status: "done", supplier_id, rawText: json.rawText, ...d }
+          updated[i] = { ...updated[i], status: "done", supplier_id, rawText: json.rawText, ...d, documentType: d.documentType }
         } else {
           updated[i] = { ...updated[i], status: json.scanned ? "error" : "done", rawText: json.rawText, error: json.scanned ? "PDF escaneado" : undefined }
         }
@@ -244,7 +245,7 @@ export default function ImportarFacturasPage() {
   async function saveAll() {
     setStep("saving")
     let saved = 0
-    const toSave = rows.filter((r) => r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_name || r.supplier_id))
+    const toSave = invoiceRows.filter((r) => r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_name || r.supplier_id))
     const total = toSave.length
 
     // Obtener business_id una sola vez para los uploads
@@ -254,7 +255,7 @@ export default function ImportarFacturasPage() {
       ? await supabase.from("profiles").select("business_id").eq("id", user.id).single()
       : { data: null }
 
-    for (const row of rows) {
+    for (const row of invoiceRows) {
       if (row.saved || !row.invoice_number || !row.invoice_date || !row.base_amount) continue
       if (!row.supplier_name && !row.supplier_id) continue
       try {
@@ -288,7 +289,14 @@ export default function ImportarFacturasPage() {
     toast.success(`¡${saved} factura${saved !== 1 ? "s" : ""} importada${saved !== 1 ? "s" : ""}!`)
   }
 
-  const readyCount = rows.filter((r) => r.status === "done" && r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_id || r.supplier_name)).length
+  function saveAsVentas() {
+    toast.success("Próximamente disponible — Ve a Ventas para registrarlos manualmente")
+    router.push("/ventas")
+  }
+
+  const invoiceRows = rows.filter((r) => r.documentType !== "income_report")
+  const incomeRows = rows.filter((r) => r.documentType === "income_report")
+  const readyCount = invoiceRows.filter((r) => r.status === "done" && r.invoice_number && r.invoice_date && r.base_amount && (r.supplier_id || r.supplier_name)).length
   const src = SOURCES[source]
   const SrcIcon = src.icon
 
@@ -497,13 +505,13 @@ export default function ImportarFacturasPage() {
       {/* ── REVISAR ── */}
       {step === "review" && (
         <div className="space-y-4">
-          {/* Resumen */}
+          {/* Resumen facturas */}
           <div className="rounded-2xl bg-primary/5 border border-primary/20 p-4 flex items-center justify-between">
             <div>
               <p className="font-bold">{readyCount} factura{readyCount !== 1 ? "s" : ""} listas para guardar</p>
               <p className="text-xs text-muted-foreground">
-                {rows.filter((r) => r.status === "error").length > 0
-                  ? `${rows.filter((r) => r.status === "error").length} no se pudieron leer — revísalas abajo`
+                {invoiceRows.filter((r) => r.status === "error").length > 0
+                  ? `${invoiceRows.filter((r) => r.status === "error").length} no se pudieron leer — revísalas abajo`
                   : "Todo correcto. Pulsa guardar para añadirlas al sistema."}
               </p>
             </div>
@@ -513,9 +521,43 @@ export default function ImportarFacturasPage() {
             </Button>
           </div>
 
-          {/* Lista */}
+          {/* Sección informes de ventas */}
+          {incomeRows.length > 0 && (
+            <div className="rounded-2xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
+                  <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-indigo-800 dark:text-indigo-200">Registros de ventas detectados</p>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    Estos documentos son informes de tus ingresos, no facturas de proveedor. Se guardarán en el módulo de Ventas.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {incomeRows.map((row) => (
+                  <div key={row.id} className="flex items-center gap-3 rounded-xl bg-indigo-100/60 dark:bg-indigo-900/20 px-3 py-2">
+                    <TrendingUp className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    <span className="text-xs flex-1 truncate">{row.concept ?? row.file.name}</span>
+                    {row.total_amount && <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">{fmt(row.total_amount)}</span>}
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+                onClick={saveAsVentas}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Guardar en Ventas
+              </Button>
+            </div>
+          )}
+
+          {/* Lista facturas */}
           <div className="space-y-2">
-            {rows.map((row) => {
+            {invoiceRows.map((row) => {
               const missingNum = !row.invoice_number
               const missingDate = !row.invoice_date
               const hasWarnings = missingNum || missingDate || !row.supplier_name

@@ -13,6 +13,7 @@ export interface InvoiceData {
   vat_amount?: number
   total_amount?: number
   concept?: string
+  documentType?: "invoice" | "income_report"
 }
 
 // ── Parsear número español/inglés → float
@@ -116,6 +117,51 @@ export function extractFromText(rawText: string): InvoiceData {
   const text = rawText
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
   const result: InvoiceData = {}
+
+  // ════════════════════════════════════════════════════════
+  // MODO INFORME DE INGRESOS — informes de SumUp, Square, Zettle, etc.
+  // ════════════════════════════════════════════════════════
+  if (
+    /informe\s+de\s+ingresos/i.test(text) &&
+    /(sumup|square|zettle|total\s+de\s+ventas)/i.test(text)
+  ) {
+    result.documentType = "income_report"
+
+    // Proveedor de pagos
+    if (/sumup/i.test(text)) result.supplier_name = "SumUp"
+    else if (/square/i.test(text)) result.supplier_name = "Square"
+    else if (/zettle/i.test(text)) result.supplier_name = "Zettle"
+
+    // Período
+    const periodM = text.match(/per[ií]odo?[:\s]+([^\n]{3,50})/i)
+    result.concept = "Informe de ingresos" + (periodM ? " - " + periodM[1].trim() : "")
+
+    // Total de ventas
+    const totalVentasM = text.match(/total\s+de\s+ventas[^0-9\n]{0,20}([0-9.,]+)/i)
+      ?? text.match(/total[:\s]+([0-9.,]+)\s*€/i)
+    if (totalVentasM) result.total_amount = parseNum(totalVentasM[1])
+
+    // Fecha del documento — buscar patrón "8 may 2026" o "08/05/2026"
+    const datePatterns303 = [
+      /(\d{1,2}\s+\w+\s+\d{4})[,\s]+\d{1,2}:\d{2}/,
+      /fecha[:\s]+(.{6,20})/i,
+      /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/,
+    ]
+    for (const pat of datePatterns303) {
+      const m = text.match(pat)
+      if (m) {
+        const d = parseDate(m[1].trim())
+        if (d) { result.invoice_date = d; break }
+      }
+    }
+    // Fallback: primera fecha del texto
+    if (!result.invoice_date) {
+      const firstDate = text.match(/\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\b/)
+      if (firstDate) result.invoice_date = parseDate(firstDate[1])
+    }
+
+    return result
+  }
 
   // ════════════════════════════════════════════════════════
   // MODO AMAZON — detectado por presencia de "amazon" en el texto
