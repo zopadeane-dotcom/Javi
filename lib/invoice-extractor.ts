@@ -506,21 +506,22 @@ export function extractFromText(rawText: string): InvoiceData {
     return true
   }
 
-  // A: razón social con forma jurídica — solo si vendedorM no lo encontró antes
+  // A: buscar forma jurídica (S.L., S.A., etc.) en TODO el documento
+  // La mayoría de empresas españolas son S.L. o S.A. — esto es muy fiable
   if (!result.supplier_name) {
-    const reFirst = new RegExp(`\\b((?:${LEGAL_FORMS})\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50})`, "m")
-    const reFinal = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50}\\s${LEGAL_FORMS})`, "m")
+    const reLegal = new RegExp(
+      `([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{1,50}\\s${LEGAL_FORMS})`,
+      "gm"
+    )
+    const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 600) : ""
+    const allLegal = [...text.matchAll(reLegal)].map((m) => m[1].trim().replace(/\s+/g, " "))
 
-    const mFirst = searchZone.match(reFirst)
-    const mFinal = searchZone.match(reFinal)
-
-    if (mFirst) {
-      const c = mFirst[1].trim().replace(/\s+/g, " ")
-      if (isValidSupplier(c)) result.supplier_name = c
-    }
-    if (!result.supplier_name && mFinal) {
-      const c = mFinal[1].trim().replace(/\s+/g, " ")
-      if (isValidSupplier(c)) result.supplier_name = c
+    for (const name of allLegal) {
+      if (!isValidSupplier(name)) continue
+      // Descartar si el nombre aparece en la zona del comprador
+      if (buyerZone.includes(name)) continue
+      result.supplier_name = name
+      break
     }
   }
 
