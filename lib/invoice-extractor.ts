@@ -267,7 +267,8 @@ export function extractFromText(rawText: string): InvoiceData {
     }
 
     // Total: "Total pendiente  22,87 €"
-    const totalM = text.match(/total\s+pendiente\s+([0-9.,]+)\s*€/i)
+    const totalM = text.match(/total\s+pendiente\s*([0-9.,]+)\s*€/i)
+      ?? text.match(/total\s+de\s+la\s+factura\s*([0-9.,]+)\s*€/i)
     if (totalM) result.total_amount = parseNum(totalM[1])
 
     // Base: precio IVA excluido en la tabla de productos
