@@ -560,6 +560,31 @@ export function extractFromText(rawText: string): InvoiceData {
     }
   }
 
+  // C: buscar también en el PIE del documento (algunos ponen datos del emisor al final)
+  if (!result.supplier_name) {
+    const footerText = text.substring(Math.max(0, text.length - 600))
+    const footerLines = footerText.split("\n").map((l) => l.trim()).filter(Boolean)
+    // Buscar primero por forma jurídica en el pie
+    const reFinalFooter = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50}\\s${LEGAL_FORMS})`, "m")
+    const footerLegal = footerText.match(reFinalFooter)
+    if (footerLegal && isValidSupplier(footerLegal[1].trim())) {
+      result.supplier_name = footerLegal[1].trim().replace(/\s+/g, " ")
+    }
+    // Si no, buscar línea que parezca nombre de empresa
+    if (!result.supplier_name) {
+      for (let i = 0; i < footerLines.length; i++) {
+        const l = footerLines[i]
+        if (l.length < 3 || l.length > 60) continue
+        if (/^\d/.test(l) || /@/.test(l) || LINE_KEYWORDS.test(l)) continue
+        if (/\b\d{5}\b/.test(l) || /^\+?\d[\d\s\-().]{5,}$/.test(l)) continue
+        const next = footerLines[i + 1] ?? ""
+        const combined = next && next.length < 25 && !/^\d/.test(next) && !LINE_KEYWORDS.test(next)
+          ? `${l} ${next}`.trim() : l
+        if (isValidSupplier(combined)) { result.supplier_name = combined; break }
+      }
+    }
+  }
+
   // ════════════════════════════════════════════════════════
   // 7. Concepto / descripción de la operación
   //    RD 1619/2012 art.6.1e
