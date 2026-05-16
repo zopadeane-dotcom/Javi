@@ -314,6 +314,8 @@ export function extractFromText(rawText: string): InvoiceData {
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
+    // "Factura Venta FVP26004242" / "Factura Albarán XXX" — palabra descriptiva entre Factura y el código
+    /factura\s+(?:venta|compra|pedido|albar[aá]n|proforma|simplificada)\s+([A-Z0-9][\w\-\/\.]{3,20})/i,
     // "Factura nº / Factura #" misma línea — "." como separador, FECHA/CODIGO como terminador
     // Cubre "Factura Nº 2026//2123", "Nº.F01947268FECHA", "Factura nº F01947268", etc.
     /factura\s+n[uúº°]?[:\s#\.]*([A-Z0-9][\w\-\/\.]{0,20}?)(?=FECHA|CODIGO|P[ÁA]G|\s{2,}|\n|$)/im,
@@ -373,6 +375,8 @@ export function extractFromText(rawText: string): InvoiceData {
     /(?:emitid[ao]|expedid[ao])\s+el\s+(.{6,20})/i,
     // "A fecha de"
     /a\s+fecha\s+de[:\s]+(.{6,20})/i,
+    // "Fecha Registro / Fecha Emisión / Fecha Venta + fecha" — palabra descriptiva entre Fecha y el valor
+    /\bfecha\s+(?:registro|emisi[oó]n|venta|pedido|contable|cobro|operaci[oó]n|entrega|expedici[oó]n)\s*:?\s*(.{6,25})/i,
     // "Fecha 11/05/2026" — sin dos puntos (formato tabla)
     /\bfecha\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i,
     // "Fecha:" genérico — también captura año de 2 dígitos (11/05/26)
@@ -538,7 +542,7 @@ export function extractFromText(rawText: string): InvoiceData {
   // La mayoría de empresas españolas son S.L. o S.A. — esto es muy fiable
   if (!result.supplier_name) {
     const reLegal = new RegExp(
-      `([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{1,50}\\s${LEGAL_FORMS})`,
+      `([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&\\-]{1,50}\\s${LEGAL_FORMS})`,
       "gm"
     )
     const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
