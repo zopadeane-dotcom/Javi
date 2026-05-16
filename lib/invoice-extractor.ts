@@ -219,10 +219,12 @@ export function extractFromText(rawText: string): InvoiceData {
   // número y fecha en cuadro superior, NIF con prefijo EU (ESWxxxxxxx)
   // ════════════════════════════════════════════════════════
   if (/amazon/i.test(text)) {
-    // Nº factura — "Número de la factura" con o sin separador, en la misma línea o siguiente
+    // Nº factura — múltiples intentos para capturar ES600006K38ZFI sin importar espacios/saltos
     const numM =
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,15}?([A-Z]{1,3}\d[\w\-]{2,20})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,15}?(\d{4,20})/i)
+      text.match(/n[uú]mero\s+de\s+la\s+factura\s*([A-Z0-9][\w\-]{3,25})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura\s*\n\s*([A-Z0-9][\w\-]{3,25})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,20}?([A-Z]{2}\d{2,}[\w\-]{0,20})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,20}?(\d{6,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
 
     // Fecha — misma línea o siguiente
@@ -330,8 +332,8 @@ export function extractFromText(rawText: string): InvoiceData {
     /(?:ticket|recibo|receipt|albar[aá]n)\s*n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/]{0,20})/i,
     // INV-xxx / FAC-xxx / REC-xxx
     /\b((?:INV|FAC|FACT|REC|ORD)[_\-][A-Z0-9][\w\-]{1,20})\b/i,
-    // "Número 2600294" — sin palabra "factura" delante (formato tabla)
-    /\bn[uú]mero\s+(?!de\b|factura\b)([A-Z0-9][\d\w\-\/\.]{0,20})\b/i,
+    // "Número 2600294" — sin "de/del/la/factura/pedido" delante (formato tabla)
+    /\bn[uú]mero\s+(?!de[lr]?\b|la\b|factura\b|pedido\b|cliente\b|orden\b)([A-Z0-9][\d\w\-\/\.]{0,20})\b/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
