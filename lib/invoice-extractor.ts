@@ -222,9 +222,9 @@ export function extractFromText(rawText: string): InvoiceData {
     // Nº factura — múltiples intentos para capturar ES600006K38ZFI sin importar espacios/saltos
     const numM =
       text.match(/n[uú]mero\s+de\s+la\s+factura\s*([A-Z0-9][\w\-]{3,25})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura\s*\n\s*([A-Z0-9][\w\-]{3,25})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,20}?([A-Z]{2}\d{2,}[\w\-]{0,20})/i) ??
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,20}?(\d{6,20})/i)
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,5}\n\s*([A-Z0-9][\w\-]{3,25})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?([A-Z0-9]{2}[\w\-]{3,20})/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?(\d{5,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
 
     // Fecha — misma línea o siguiente
