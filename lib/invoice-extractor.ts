@@ -322,6 +322,8 @@ export function extractFromText(rawText: string): InvoiceData {
     // Layout tabla CRISTAMAR: "FACTURA Nº   FECHA\n2026053" — número en línea siguiente
     // Solo cuando la misma línea de "Nº" acaba en etiqueta (FECHA/CÓDIGO) sin dígitos propios
     /factura[^\S\n]+n[uúº°]?[^\S\n]*(?:fecha|c[oó]d[a-z]*|p[aá]g[a-z]*)[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
+    // "FACTURA N° : 450000197013" — formato tabla con N° y dos puntos (estilo francés/RETIF)
+    /factura[^\S\n]+n[°º][^\S\n]*:?[^\S\n]*(\d{4,20})/i,
     // "Fra. nº" / "Nº fra."
     /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{0,15}?)(?:\s{2,}|\n|$)/im,
     /n[uúº°]\s*\.?\s*fra[:.]\s*([A-Z0-9][\w\-\/]{0,15})/i,
@@ -353,6 +355,8 @@ export function extractFromText(rawText: string): InvoiceData {
     if (NUM_BLACKLIST.test(num)) continue
     if (NUM_BAD_START.test(num)) continue
     if (FRACTION.test(num)) continue
+    // Rechazar si es texto puro en mayúsculas sin dígitos (etiqueta de tabla, no número)
+    if (/^[A-ZÁÉÍÓÚÑ\s]{3,}$/.test(num) && !/\d/.test(num)) continue
     result.invoice_number = num
     break
   }
