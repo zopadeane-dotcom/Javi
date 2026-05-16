@@ -108,7 +108,7 @@ const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador
 // ── Etiquetas que NO son números de factura válidos
 const NUM_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.|CONCEPTO|DESCRIPCI[OÓ]N)$/i
 const NUM_BAD_START = /^(FECHA|MR\.|MRS\.|SR\.|DR\.|ID[\s\-])/i
-const FRACTION = /^\d+\/\d+$/
+const FRACTION = /^\d{1,3}\/\d{1,3}$/ // solo fracciones cortas — no bloquear formatos Nº/Año
 
 // ── Formas jurídicas con o sin puntos (para detectar razón social)
 const LEGAL_FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.A\\.?|S\\.C\\.P\\.?|C\\.B\\.?|SLU\\b|SL\\b|SA\\b|SAT\\b|CB\\b)"
@@ -221,7 +221,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // — mini-box: "Vendido por nombreVendedor" en la misma línea
     // — tabla:    "Vendido por\nComprador\tComprador\tVendedor" → coger último segmento
     const BUYER_NAMES = /^(joanna|juan|maria|jose|pedro|avenida|calle|c\/|dirección|si\s+tienes)/i
-    const vendidoMatches = [...text.matchAll(/vendido\s+por\s*([^\n]*)/gi)]
+    const vendidoMatches = [...text.matchAll(/vendido\s+por[^\S\n]*([^\n]*)/gi)]
     for (const m of vendidoMatches) {
       const sameLine = m[1].trim()
       if (sameLine && !BUYER_NAMES.test(sameLine) && !/@/.test(sameLine) && !/^https?:/i.test(sameLine)) {
