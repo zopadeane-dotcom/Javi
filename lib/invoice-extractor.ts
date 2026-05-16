@@ -222,7 +222,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // Nº factura Amazon España: siempre empieza por ES + alfanumérico (ES600006K38ZFI, ES6HH16ABEI…)
     // Cubrimos todos los formatos conocidos con una única búsqueda de "ES[a-z0-9]+" cerca del label
     const numM =
-      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,50}?\b(ES[A-Z0-9]{5,25})\b/i) ??
+      text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,50}?(ES[A-Z0-9]{5,25})/i) ??
       text.match(/n[uú]mero\s+de\s+la\s+factura\s*([A-Z0-9][\w\-]{3,25})/i) ??
       text.match(/n[uú]mero\s+de\s+la\s+factura[\s\S]{0,30}?([A-Z0-9]{2}[\w\-]{3,20})/i)
     if (numM) result.invoice_number = numM[1].trim()
