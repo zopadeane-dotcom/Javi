@@ -335,6 +335,9 @@ export function extractFromText(rawText: string): InvoiceData {
     /\b((?:INV|FAC|FACT|REC|ORD)[_\-][A-Z0-9][\w\-]{1,20})\b/i,
     // "Número 2600294" — sin "de/del/la/factura/pedido" delante (formato tabla)
     /\bn[uú]mero\s+(?!de[lr]?\b|la\b|factura\b|pedido\b|cliente\b|orden\b)([A-Z0-9][\d\w\-\/\.]{0,20})\b/i,
+    // Número pegado a la fecha sin separador: "260022921/04/2026" → "2600229"
+    // Usa cuantificador no-codicioso para extraer el número antes del día de la fecha
+    /\b(\d{4,10}?)\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}\b/,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
