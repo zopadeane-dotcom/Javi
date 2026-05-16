@@ -120,7 +120,7 @@ const NUM_BAD_START = /^(FECHA|MR\.|MRS\.|SR\.|DR\.|ID[\s\-])/i
 const FRACTION = /^\d{1,3}\/\d{1,3}$/ // solo fracciones cortas — no bloquear formatos Nº/Año
 
 // ── Formas jurídicas con o sin puntos (para detectar razón social)
-const LEGAL_FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.A\\.?|S\\.C\\.P\\.?|C\\.B\\.?|SLU\\b|SL\\b|SA\\b|SAT\\b|CB\\b)"
+const LEGAL_FORMS = "(?:S\\.A\\.T\\.?|S\\.A\\.L\\.?|S\\.L\\.U\\.?|S\\.L\\.?|S\\.A\\.?|S\\.C\\.P\\.?|C\\.B\\.?|SLU\\b|SL\\b|SA\\b|SAU\\b|SAT\\b|CB\\b)"
 
 // ── Extractor principal
 export function extractFromText(rawText: string): InvoiceData {
@@ -326,6 +326,8 @@ export function extractFromText(rawText: string): InvoiceData {
     /factura[^\S\n]+n[uúº°]?[^\S\n]*(?:fecha|c[oó]d[a-z]*|p[aá]g[a-z]*)[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
     // "FACTURA N° : 450000197013" — formato tabla con N° y dos puntos (estilo francés/RETIF)
     /factura[^\S\n]+n[°º][^\S\n]*:?[^\S\n]*(\d{4,20})/i,
+    // Columnas separadas: "FACTURA\n...\nN° :\n...\n450000197013" — número solo en su línea
+    /factura[\s\S]{0,200}?^(\d{8,20})$/im,
     // "Fra. nº" / "Nº fra."
     /fra\.?\s*n[uúº°]?[:\s]*([A-Z0-9][\w\-\/\s]{0,15}?)(?:\s{2,}|\n|$)/im,
     /n[uúº°]\s*\.?\s*fra[:.]\s*([A-Z0-9][\w\-\/]{0,15})/i,
