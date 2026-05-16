@@ -313,9 +313,9 @@ export function extractFromText(rawText: string): InvoiceData {
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
-    // "Factura nº / Factura #" misma línea — ANTES del patrón de línea siguiente
-    // Cubre "Factura Nº 2026//2123", "Factura nº F01947268", etc.
-    /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/\.]{0,20}?)(?:\s{2,}|\n|$)/im,
+    // "Factura nº / Factura #" misma línea — "." como separador, FECHA/CODIGO como terminador
+    // Cubre "Factura Nº 2026//2123", "Nº.F01947268FECHA", "Factura nº F01947268", etc.
+    /factura\s+n[uúº°]?[:\s#\.]*([A-Z0-9][\w\-\/\.]{0,20}?)(?=FECHA|CODIGO|P[ÁA]G|\s{2,}|\n|$)/im,
     /factura\s*#\s*([A-Z0-9][\w\-\/\.]*)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     // Layout tabla CRISTAMAR: "FACTURA Nº   FECHA\n2026053" — número en línea siguiente
@@ -514,15 +514,21 @@ export function extractFromText(rawText: string): InvoiceData {
       `([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{1,50}\\s${LEGAL_FORMS})`,
       "gm"
     )
-    const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 600) : ""
-    const allLegal = [...text.matchAll(reLegal)].map((m) => m[1].trim().replace(/\s+/g, " "))
+    const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
+    const allLegal = [...text.matchAll(reLegal)]
+      .map((m) => m[1].trim().replace(/\s+/g, " "))
+      .filter((n) => isValidSupplier(n))
+    const uniqueLegal = [...new Set(allLegal)]
 
-    for (const name of allLegal) {
-      if (!isValidSupplier(name)) continue
-      // Descartar si el nombre aparece en la zona del comprador
-      if (buyerZone.includes(name)) continue
-      result.supplier_name = name
-      break
+    if (uniqueLegal.length === 1) {
+      // Solo una empresa con forma jurídica en el documento → es el proveedor
+      result.supplier_name = uniqueLegal[0]
+    } else {
+      for (const name of uniqueLegal) {
+        if (buyerZone.includes(name)) continue
+        result.supplier_name = name
+        break
+      }
     }
   }
 
