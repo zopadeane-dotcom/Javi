@@ -314,8 +314,10 @@ export function extractFromText(rawText: string): InvoiceData {
   const numPatterns = [
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{0,20})/i,
+    // "N° Factura: A-V2026-00001536289" — Mercadona y similares (Nº ANTES de Factura)
+    /n[°º]\s+factura[:\s]+([A-Z0-9][\w\-\/\.]{3,25})/i,
     // "Factura Venta FVP26004242" / "Factura Albarán XXX" — palabra descriptiva entre Factura y el código
-    /factura\s+(?:venta|compra|pedido|albar[aá]n|proforma|simplificada)\s+([A-Z0-9][\w\-\/\.]{3,20})/i,
+    /factura\s+(?:venta|compra|pedido|albar[aá]n|proforma)\s+([A-Z0-9][\w\-\/\.]{3,20})/i,
     // "Factura nº / Factura #" misma línea — "." como separador, FECHA/CODIGO como terminador
     // Cubre "Factura Nº 2026//2123", "Nº.F01947268FECHA", "Factura nº F01947268", etc.
     /factura\s+n[uúº°]?[:\s#\.]*([A-Z0-9][\w\-\/\.]{0,20}?)(?=FECHA|CODIGO|P[ÁA]G|\s{2,}|\n|$)/im,
@@ -359,8 +361,8 @@ export function extractFromText(rawText: string): InvoiceData {
     if (NUM_BLACKLIST.test(num)) continue
     if (NUM_BAD_START.test(num)) continue
     if (FRACTION.test(num)) continue
-    // Rechazar si es texto puro en mayúsculas sin dígitos (etiqueta de tabla, no número)
-    if (/^[A-ZÁÉÍÓÚÑ\s]{3,}$/.test(num) && !/\d/.test(num)) continue
+    // Rechazar si es texto puro (mayúsculas O minúsculas) sin dígitos: etiqueta, no número
+    if (/^[A-ZÁÉÍÓÚÑa-záéíóúñ\s]{3,}$/.test(num) && !/\d/.test(num)) continue
     result.invoice_number = num
     break
   }
@@ -560,11 +562,16 @@ export function extractFromText(rawText: string): InvoiceData {
         const parts = raw.split(DOC_SPLIT).map(p => p.trim()).filter(Boolean)
         // Juntar fragmentos consecutivos hasta encontrar el que termina en forma jurídica
         for (let i = parts.length - 1; i >= 0; i--) {
-          const candidate = parts.slice(i).join(" ").trim()
+          const candidate = parts.slice(i).join(" ")
+            .replace(/^(?:Y|E|O|U)\s+/i, "").trim()
           if (legalTestRe.test(candidate) && isValidSupplier(candidate)) return candidate
         }
         // Fallback: si el raw ya contiene la forma jurídica y es válido, usarlo tal cual
-        const cleanRaw = raw.replace(/^(?:CLIENTE|NÚMERO|FECHA|PÁG\.?\s+|FACTURA|VENDEDOR)\s*/i, "").trim()
+        const cleanRaw = raw
+          .replace(/^(?:CLIENTE|NÚMERO|FECHA|PÁG\.?\s+|FACTURA|VENDEDOR)\s*/i, "")
+          // Quitar conjunciones sueltas al inicio ("Y INNOVACIÓN..." → "INNOVACIÓN...")
+          .replace(/^(?:Y|E|O|U)\s+/i, "")
+          .trim()
         return cleanRaw
       })
       .filter((n) => isValidSupplier(n))
