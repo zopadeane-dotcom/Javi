@@ -1,38 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
 import { extractFromText } from "@/lib/invoice-extractor"
 
-async function visionSupplier(buffer: Buffer): Promise<string | undefined> {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return undefined
+// Extracción con pdfjs-dist: agrupa items por línea Y para reconstruir el texto
+// Captura texto que pdf-parse omite (fuentes CID, elementos posicionados cerca de logos, etc.)
+async function extractTextPdfJs(buffer: Buffer): Promise<string> {
   try {
-    const { default: Anthropic } = await import("@anthropic-ai/sdk")
-    const client = new Anthropic({ apiKey })
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 80,
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: {
-              type: "base64",
-              media_type: "application/pdf",
-              data: buffer.toString("base64"),
-            },
-          } as any,
-          {
-            type: "text",
-            text: "¿Cuál es el nombre de la empresa que EMITE esta factura (el vendedor, no el cliente)? Responde solo con el nombre exacto, sin explicaciones. Si no puedes determinarlo escribe DESCONOCIDO.",
-          },
-        ],
-      }],
-    })
-    const name = msg.content[0]?.type === "text" ? msg.content[0].text.trim() : ""
-    if (!name || name.toUpperCase().includes("DESCONOCIDO")) return undefined
-    return name
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js")
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), verbosity: 0 }).promise
+    const parts: string[] = []
+    for (let p = 1; p <= Math.min(doc.numPages, 2); p++) {
+      const page = await doc.getPage(p)
+      const content = await page.getTextContent()
+      const lineMap = new Map<number, string[]>()
+      for (const item of content.items as any[]) {
+        if (!item.str?.trim()) continue
+        const y = Math.round(item.transform[5])
+        if (!lineMap.has(y)) lineMap.set(y, [])
+        lineMap.get(y)!.push(item.str)
+      }
+      const sorted = [...lineMap.entries()].sort((a, b) => b[0] - a[0])
+      parts.push(sorted.map(([, words]) => words.join(" ")).join("\n"))
+    }
+    return parts.join("\n")
   } catch {
-    return undefined
+    return ""
   }
 }
 
@@ -71,10 +63,17 @@ export async function POST(req: NextRequest) {
 
     const data = extractFromText(text)
 
-    // Si no se detectó el proveedor, Claude lee el PDF visualmente (logos, imágenes)
-    if (!data.supplier_name && buffer.length < 10 * 1024 * 1024) {
-      const visionName = await visionSupplier(buffer)
-      if (visionName) data.supplier_name = visionName
+    // Si no encontró proveedor, releer con pdfjs-dist (extrae más texto que pdf-parse)
+    if (!data.supplier_name) {
+      const pdfJsText = await extractTextPdfJs(buffer)
+      if (pdfJsText.trim().length > 10) {
+        const data2 = extractFromText(pdfJsText)
+        if (data2.supplier_name) data.supplier_name = data2.supplier_name
+        // Aprovechar otros campos que pdfjs pueda haber encontrado
+        if (!data.invoice_number && data2.invoice_number) data.invoice_number = data2.invoice_number
+        if (!data.invoice_date && data2.invoice_date) data.invoice_date = data2.invoice_date
+        if (!data.total_amount && data2.total_amount) data.total_amount = data2.total_amount
+      }
     }
 
     return NextResponse.json({ success: true, data, rawText: text.substring(0, 1000) })
