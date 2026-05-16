@@ -106,7 +106,7 @@ function parseDate(s: string): string | undefined {
 const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador)|receptor|destinatario|comprador|señores|bill\s+to|billing\s+(address|info)|ship\s+to|sold\s+to|dirección\s+de?\s*(env[íi]o|facturaci[oó]n|entrega|factura)|dirección\s+env[íi]o|raz[oó]n\s+social|facturar\s+a|cliente[:\s\n]|datos\s+del\s+cliente)\b/i
 
 // ── Etiquetas que NO son números de factura válidos
-const NUM_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.|CONCEPTO|DESCRIPCI[OÓ]N)$/i
+const NUM_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.|CONCEPTO|DESCRIPCI[OÓ]N|VENDEDOR|MONEDA|CLIENTE|C[OÓ]DIGO|P[AÁ]GINA|EURO|IMPORTE|TOTAL)$/i
 const NUM_BAD_START = /^(FECHA|MR\.|MRS\.|SR\.|DR\.|ID[\s\-])/i
 const FRACTION = /^\d{1,3}\/\d{1,3}$/ // solo fracciones cortas — no bloquear formatos Nº/Año
 
@@ -300,7 +300,8 @@ export function extractFromText(rawText: string): InvoiceData {
     // "Número de factura: F26/0784" — etiqueta legal exacta
     /n[uú]mero\s+(?:de\s+)?factura[:\s#]*([A-Z0-9][\w\-\/\.]{1,20})/i,
     // Layout tabla: "FACTURA Nº   FECHA\n2026053   07/05/2026" — número en línea siguiente
-    /factura\s+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
+    // [^\S\n]+ evita cruzar saltos de línea (no mezclar con "FACTURA\nNº F01947268")
+    /factura[^\S\n]+n[uúº°]?[^\n]*\n\s*([A-Z0-9][\d\w\-\/\.]{1,20})/im,
     // "Factura nº / Factura #"
     /factura\s+n[uúº°]?[:\s#]*([A-Z0-9][\w\s\-\/\.]{1,20}?)(?:\s{2,}|\n|$)/im,
     /factura\s*#\s*([A-Z0-9][\w\-\/\.]+)/i,
@@ -478,20 +479,22 @@ export function extractFromText(rawText: string): InvoiceData {
     return true
   }
 
-  // A: razón social con forma jurídica
-  const reFirst = new RegExp(`\\b((?:${LEGAL_FORMS})\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50})`, "m")
-  const reFinal = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50}\\s${LEGAL_FORMS})`, "m")
+  // A: razón social con forma jurídica — solo si vendedorM no lo encontró antes
+  if (!result.supplier_name) {
+    const reFirst = new RegExp(`\\b((?:${LEGAL_FORMS})\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50})`, "m")
+    const reFinal = new RegExp(`([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&]{2,50}\\s${LEGAL_FORMS})`, "m")
 
-  const mFirst = searchZone.match(reFirst)
-  const mFinal = searchZone.match(reFinal)
+    const mFirst = searchZone.match(reFirst)
+    const mFinal = searchZone.match(reFinal)
 
-  if (mFirst) {
-    const c = mFirst[1].trim().replace(/\s+/g, " ")
-    if (isValidSupplier(c)) result.supplier_name = c
-  }
-  if (!result.supplier_name && mFinal) {
-    const c = mFinal[1].trim().replace(/\s+/g, " ")
-    if (isValidSupplier(c)) result.supplier_name = c
+    if (mFirst) {
+      const c = mFirst[1].trim().replace(/\s+/g, " ")
+      if (isValidSupplier(c)) result.supplier_name = c
+    }
+    if (!result.supplier_name && mFinal) {
+      const c = mFinal[1].trim().replace(/\s+/g, " ")
+      if (isValidSupplier(c)) result.supplier_name = c
+    }
   }
 
   // B: fallback — primera línea de la zona emisor que parezca un nombre
