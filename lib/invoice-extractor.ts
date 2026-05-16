@@ -566,7 +566,11 @@ export function extractFromText(rawText: string): InvoiceData {
         return cleanRaw
       })
       .filter((n) => isValidSupplier(n))
-    const uniqueLegal = [...new Set(allLegal)]
+    // Si un nombre contiene a otro (ej: "Joanna Lowigus PepeBar E-Spain SL" ⊃ "PepeBar E-Spain SL"),
+    // quedarse solo con el más específico (el que no está contenido en otro)
+    const uniqueLegal = [...new Set(allLegal)].filter(
+      (name) => !allLegal.some((other) => other !== name && other.length > 5 && name.includes(other))
+    )
 
     if (uniqueLegal.length === 1) {
       // Solo una empresa con forma jurídica en el documento → es el proveedor
