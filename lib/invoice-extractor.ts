@@ -315,6 +315,8 @@ export function extractFromText(rawText: string): InvoiceData {
     /(?:ticket|recibo|receipt|albar[aá]n)\s*n[uúº°]?[:\s#]*([A-Z0-9][\w\-\/]{1,20})/i,
     // INV-xxx / FAC-xxx / REC-xxx
     /\b((?:INV|FAC|FACT|REC|ORD)[_\-][A-Z0-9][\w\-]{1,20})\b/i,
+    // "Número 2600294" — sin palabra "factura" delante (formato tabla)
+    /\bn[uú]mero\s+(?!de\b|factura\b)([A-Z0-9][\d\w\-\/\.]{3,20})\b/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
@@ -341,6 +343,8 @@ export function extractFromText(rawText: string): InvoiceData {
     // Etiquetas legales exactas (mayor prioridad)
     /fecha\s+de\s+(?:expedici[oó]n|emisi[oó]n|factura)[:\s]*(.{6,20})/i,
     /fecha\s+(?:de\s+)?(?:expedici[oó]n|emisi[oó]n)[:\s]*(.{6,20})/i,
+    // "Fecha 11/05/2026" — sin dos puntos (formato tabla)
+    /\bfecha\s+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})/i,
     // "Fecha:" genérico
     /fecha\s*[:\-]\s*(.{6,20})/i,
     // "Date:" / "Invoice date:" en inglés (Amazon, plataformas internacionales)
@@ -454,7 +458,8 @@ export function extractFromText(rawText: string): InvoiceData {
     if (/ID\s+de\s+(comerciante|referencia|pago)|merchant\s*ID|payment\s*ID/i.test(name)) return false
     if (/IVA\s+(exclu|inclu)/i.test(name)) return false
     if (/^[A-Za-z0-9]{9,}$/.test(name)) return false
-    if (/^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.|Miss\s|Don\s|Doña\s)/i.test(name)) return false
+    // Rechazar títulos personales SOLO si no hay forma jurídica (MR. CHAVA CAFÉS SL es empresa)
+    if (/^(Mr\.|Mrs\.|Sr\.|Sra\.|Dr\.|Miss\s|Don\s|Doña\s)/i.test(name) && !new RegExp(LEGAL_FORMS, "i").test(name)) return false
     if (/^ID[\s\-]/i.test(name)) return false
     if (/^(IVA|IRPF|impuesto|tax|base|total|fecha|factura|n[uú]m|detalles\s+de|invoice\s+det|order\s+det|datos\s+de\s+la)/i.test(name)) return false
     if (/\b\d{5}\b/.test(name)) return false
