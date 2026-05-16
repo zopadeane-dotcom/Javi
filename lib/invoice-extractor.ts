@@ -399,9 +399,11 @@ export function extractFromText(rawText: string): InvoiceData {
     }
   }
 
-  // Fallback por año: buscar 202x/203x en el texto y extraer la fecha completa del contexto
+  // Fallback por año: buscar el año actual ±2 y extraer la fecha completa del contexto
   if (!result.invoice_date) {
-    for (const ym of text.matchAll(/\b(202[4-9]|203[0-2])\b/g)) {
+    const cy = new Date().getFullYear()
+    const yearRe = new RegExp(`\\b(${[cy-1, cy, cy+1, cy+2].join("|")})\\b`, "g")
+    for (const ym of text.matchAll(yearRe)) {
       const idx = ym.index ?? 0
       const before60 = text.substring(Math.max(0, idx - 60), idx)
       if (/vencimiento|venc[ei]|pago\s+antes|cobro|caducidad/i.test(before60)) continue
