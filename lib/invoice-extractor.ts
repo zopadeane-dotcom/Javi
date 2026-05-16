@@ -399,6 +399,23 @@ export function extractFromText(rawText: string): InvoiceData {
     }
   }
 
+  // Fallback por año: buscar 202x/203x en el texto y extraer la fecha completa del contexto
+  if (!result.invoice_date) {
+    for (const ym of text.matchAll(/\b(202[4-9]|203[0-2])\b/g)) {
+      const idx = ym.index ?? 0
+      const before60 = text.substring(Math.max(0, idx - 60), idx)
+      if (/vencimiento|venc[ei]|pago\s+antes|cobro|caducidad/i.test(before60)) continue
+      // Buscar el patrón de fecha completo centrado en el año
+      const window = text.substring(Math.max(0, idx - 8), idx + 5)
+      const found = window.match(/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}/)
+        ?? window.match(/\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/)
+      if (found) {
+        const d = parseDate(found[0])
+        if (d) { result.invoice_date = d; break }
+      }
+    }
+  }
+
   // ════════════════════════════════════════════════════════
   // 4. Tipo impositivo (IVA)
   //    RD 1619/2012 art.6.1f: "tipo impositivo aplicado"
@@ -515,8 +532,16 @@ export function extractFromText(rawText: string): InvoiceData {
       "gm"
     )
     const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
+    // Limpiar prefijos de etiquetas PDF pegadas ("CLIENTE NúmeroFecha Pág. EMPRESA SL")
+    const DOC_LABELS = /^(?:cliente[s]?|n[uú]mero|fecha|p[aá]g\.?|factura|proveedor|emisor|datos|ref\.?|c[oó]d\.?|page|vendedor|raz[oó]n\s+social|direcci[oó]n)\s+/gi
     const allLegal = [...text.matchAll(reLegal)]
-      .map((m) => m[1].trim().replace(/\s+/g, " "))
+      .map((m) => {
+        let name = m[1].trim().replace(/\s+/g, " ")
+        // Quitar etiquetas de documento que se hayan colado al principio
+        let prev = ""
+        while (prev !== name) { prev = name; name = name.replace(DOC_LABELS, "").trim() }
+        return name
+      })
       .filter((n) => isValidSupplier(n))
     const uniqueLegal = [...new Set(allLegal)]
 
