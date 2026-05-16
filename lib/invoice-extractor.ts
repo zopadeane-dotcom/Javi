@@ -103,7 +103,7 @@ function parseDate(s: string): string | undefined {
 
 // ── Palabras que marcan el inicio de la sección RECEPTOR/CLIENTE
 // (según RD 1619/2012: "datos del destinatario", "receptor", "cliente", etc.)
-const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador)|receptor|destinatario|comprador|señores|bill\s+to|billing\s+(address|info)|ship\s+to|sold\s+to|dirección\s+de\s+(envío|facturación|entrega)|facturar\s+a|cliente[:\s])\b/i
+const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador)|receptor|destinatario|comprador|señores|bill\s+to|billing\s+(address|info)|ship\s+to|sold\s+to|dirección\s+de?\s*(env[íi]o|facturaci[oó]n|entrega|factura)|dirección\s+env[íi]o|raz[oó]n\s+social|facturar\s+a|cliente[:\s\n]|datos\s+del\s+cliente)\b/i
 
 // ── Etiquetas que NO son números de factura válidos
 const NUM_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.|CONCEPTO|DESCRIPCI[OÓ]N)$/i
@@ -446,6 +446,16 @@ export function extractFromText(rawText: string): InvoiceData {
   const issuerZone = buyerIdx > 80
     ? text.substring(0, buyerIdx)
     : text.substring(0, Math.min(text.length, 700))
+
+  // Prioridad máxima: etiqueta "VENDEDOR" explícita (García de Pou, etc.)
+  const vendedorM = text.match(/vendedor\s*[:\-]?\s*\n\s*([^\n]{3,80})/i)
+  if (vendedorM) {
+    const name = vendedorM[1].trim().replace(/\s+/g, " ")
+    // Solo usar si parece razón social, no una dirección o dato fiscal
+    if (!/^\d|^R\.M\.|^F\s*\d|^CIF|^TVA|^R\.\s*Prod/i.test(name)) {
+      result.supplier_name = name
+    }
+  }
 
   // Si hay una sección marcada explícitamente como emisor, usarla
   const issuerSectionM = text.match(/(?:datos\s+del\s+(?:emisor|expedidor|proveedor|vendedor)|emisor[:\s]|expedidor[:\s])([\s\S]{0,200}?)(?:\n\n|\n(?=[A-Z]))/i)
