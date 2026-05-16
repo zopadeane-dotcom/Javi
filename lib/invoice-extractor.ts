@@ -316,7 +316,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // "Factura nº / Factura #" misma línea — "." como separador, FECHA/CODIGO como terminador
     // Cubre "Factura Nº 2026//2123", "Nº.F01947268FECHA", "Factura nº F01947268", etc.
     /factura\s+n[uúº°]?[:\s#\.]*([A-Z0-9][\w\-\/\.]{0,20}?)(?=FECHA|CODIGO|P[ÁA]G|\s{2,}|\n|$)/im,
-    /factura\s*#\s*([A-Z0-9][\w\-\/\.]*)/i,
+    /factura\s*#\s*([A-Z0-9][\w\-\/\.]{0,20}?)(?=\s|[A-Z][a-z]|\n|$)/i,
     /factura[:\s]+([A-Z0-9][\w\-\/\.]+(?:[\s\-][A-Z0-9][\w\-\/\.]*)?)/i,
     // Layout tabla CRISTAMAR: "FACTURA Nº   FECHA\n2026053" — número en línea siguiente
     // Solo cuando la misma línea de "Nº" acaba en etiqueta (FECHA/CÓDIGO) sin dígitos propios
