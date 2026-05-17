@@ -130,6 +130,35 @@ export function extractFromText(rawText: string): InvoiceData {
   const result: InvoiceData = {}
 
   // ════════════════════════════════════════════════════════
+  // MODO RECIBO EN INGLÉS — marketplaces chinos, Amazon en inglés, etc.
+  // Señales: "Receipt" + "Sold by" — sin "Factura" ni "amazon" en el texto
+  // ════════════════════════════════════════════════════════
+  if (/\breceipt\b/i.test(text) && /\bsold\s+by\b/i.test(text)) {
+    // Proveedor: "Sold by ShanXiYueHaoKeJiYouXianGongSi"
+    const soldByM = text.match(/sold\s+by\s+([^\n]{3,100})/i)
+    if (soldByM) {
+      const name = soldByM[1].trim().split(/\n/)[0].trim()
+      if (!/^(joanna|juan|maria|jose|pedro|avenida|calle)/i.test(name) && !/@/.test(name))
+        result.supplier_name = name
+    }
+    // Número: "Receipt # INV2603270063"
+    const recNumM = text.match(/receipt\s*#[:\s]*([A-Z0-9][\w\-]{3,25})/i)
+    if (recNumM) result.invoice_number = recNumM[1].trim()
+
+    // Fecha: "Receipt date 27.03.2026" / "Receipt date: 27/03/2026"
+    const recDateM = text.match(/receipt\s+date[:\s]+(.{5,20})/i)
+    if (recDateM) {
+      const d = parseDate(recDateM[1].trim().substring(0, 20))
+      if (d) result.invoice_date = d
+    }
+    // Total: "Total payable € 224.85"
+    const recTotalM = text.match(/total\s+payable[:\s]*[€$£]?\s*([0-9.,]+)/i)
+    if (recTotalM) result.total_amount = parseNum(recTotalM[1])
+
+    if (result.invoice_number && result.invoice_date && result.total_amount) return result
+  }
+
+  // ════════════════════════════════════════════════════════
   // MODO INFORME DE INGRESOS — informes de SumUp, Square, Zettle, etc.
   // ════════════════════════════════════════════════════════
   if (
