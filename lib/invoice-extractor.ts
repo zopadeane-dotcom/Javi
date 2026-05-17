@@ -144,17 +144,18 @@ export function extractFromText(rawText: string): InvoiceData {
     }
     // Si el nombre está en la línea siguiente (segunda aparición de "Sold by")
     if (!result.supplier_name) {
-      const soldByLines = [...text.matchAll(/sold\s*by\s*\n\s*([^\n]{3,100})/gi)]
+      // Buscar "Soldby\nNombreVendedor" (nombre en línea siguiente)
+      const soldByLines = [...text.matchAll(/sold\s*by\s*\n+\s*([^\n]{3,100})/gi)]
       for (const m of soldByLines) {
         const name = m[1].trim()
-        if (!/^(joanna|juan|maria|jose|pedro|avenida)/i.test(name) && !/@/.test(name)) {
+        if (!/^(joanna|juan|maria|jose|pedro|avenida|room|no\.\s*\d)/i.test(name) && !/@/.test(name) && !/^\d/.test(name)) {
           result.supplier_name = name; break
         }
       }
     }
 
-    // Número: "Receipt#INV2603270063" o "Receipt # INV2603270063"
-    const recNumM = text.match(/receipt\s*#\s*([A-Z0-9][\w\-]{3,25})/i)
+    // Número: "Receipt # INV..." — el # puede ser carácter especial, usamos \W (cualquier no-palabra)
+    const recNumM = text.match(/receipt\s*\W\s*([A-Z0-9][\w\-]{3,25})/i)
     if (recNumM) result.invoice_number = recNumM[1].trim()
 
     // Fecha: "Receiptdate27.03.2026" o "Receipt date: 27/03/2026"
@@ -391,8 +392,8 @@ export function extractFromText(rawText: string): InvoiceData {
     // Número pegado a la fecha sin separador: "260022921/04/2026" → "2600229"
     // Usa cuantificador no-codicioso para extraer el número antes del día de la fecha
     /\b(\d{4,10}?)\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}\b/,
-    // "Receipt # INV2603270063" / "Receipt#INV2603270063" — recibos en inglés
-    /receipt\s*#\s*([A-Z0-9][\w\-]{3,25})/i,
+    // "Receipt # INV2603270063" — el # puede ser carácter especial
+    /receipt\s*\W\s*([A-Z0-9][\w\-]{3,25})/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
