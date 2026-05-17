@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     const data = extractFromText(text)
+    // DEBUG TEMPORAL — ver qué detecta el extractor
+    const _debug = `\n\n=== EXTRACTOR ===\nproveedor: ${data.supplier_name ?? 'NONE'}\nnumero: ${data.invoice_number ?? 'NONE'}\nfecha: ${data.invoice_date ?? 'NONE'}\ntotal: ${data.total_amount ?? 'NONE'}`
 
     // Si no encontró proveedor, releer con pdfjs-dist (extrae más texto que pdf-parse)
     if (!data.supplier_name) {
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, data, rawText: text.substring(0, 1000) })
+    return NextResponse.json({ success: true, data, rawText: text.substring(0, 800) + _debug })
 
   } catch (e: any) {
     return NextResponse.json({
