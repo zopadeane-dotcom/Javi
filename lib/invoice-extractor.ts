@@ -112,7 +112,7 @@ function parseDate(s: string): string | undefined {
 
 // ── Palabras que marcan el inicio de la sección RECEPTOR/CLIENTE
 // (según RD 1619/2012: "datos del destinatario", "receptor", "cliente", etc.)
-const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador)|receptor|destinatario|comprador|señores|bill\s+to|billing\s+(address|info)|ship\s+to|sold\s+to|dirección\s+de?\s*(env[íi]o|facturaci[oó]n|entrega|factura)|dirección\s+env[íi]o|raz[oó]n\s+social|facturar\s+a|cliente[:\s\n]|datos\s+del\s+cliente)\b/i
+const BUYER_SECTION = /\b(datos\s+del\s+(receptor|destinatario|cliente|comprador)|receptor|destinatario|comprador|señores|bill\s*to|billing\s*(address|info)|ship\s*to|sold\s*to|dirección\s+de?\s*(env[íi]o|facturaci[oó]n|entrega|factura)|dirección\s+env[íi]o|raz[oó]n\s+social|facturar\s+a|cliente[:\s\n]|datos\s+del\s+cliente)\b/i
 
 // ── Etiquetas que NO son números de factura válidos
 const NUM_BLACKLIST = /^(FECHA(\s+DEL?)?|NUMERO|NÚMERO|DATE|REF|REFERENCIA|MR\.|MRS\.|SR\.|SRA\.|DR\.|CONCEPTO|DESCRIPCI[OÓ]N|VENDEDOR|MONEDA|CLIENTE|C[OÓ]DIGO|P[AÁ]GINA|EURO|IMPORTE|TOTAL)$/i
@@ -391,6 +391,8 @@ export function extractFromText(rawText: string): InvoiceData {
     // Número pegado a la fecha sin separador: "260022921/04/2026" → "2600229"
     // Usa cuantificador no-codicioso para extraer el número antes del día de la fecha
     /\b(\d{4,10}?)\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}\b/,
+    // "Receipt # INV2603270063" / "Receipt#INV2603270063" — recibos en inglés
+    /receipt\s*#\s*([A-Z0-9][\w\-]{3,25})/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
   ]
@@ -556,8 +558,8 @@ export function extractFromText(rawText: string): InvoiceData {
     ? text.substring(0, buyerIdx)
     : text.substring(0, Math.min(text.length, 700))
 
-  // Prioridad máxima: etiqueta "VENDEDOR" explícita (García de Pou, etc.)
-  const vendedorM = text.match(/vendedor\s*[:\-]?\s*\n\s*([^\n]{3,80})/i)
+  // Prioridad máxima: "VENDEDOR :" (García de Pou) o "Sold by" (recibos en inglés, chinos)
+  const vendedorM = text.match(/(?:vendedor\s*[:\-]?|sold\s*by)\s*\n?\s*([^\n]{3,80})/i)
   if (vendedorM) {
     const name = vendedorM[1].trim().replace(/\s+/g, " ")
     // Solo usar si parece razón social, no una dirección o dato fiscal
