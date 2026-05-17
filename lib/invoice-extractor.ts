@@ -158,14 +158,16 @@ export function extractFromText(rawText: string): InvoiceData {
     if (recNumM) result.invoice_number = recNumM[1].trim()
 
     // Fecha: "Receiptdate27.03.2026" o "Receipt date: 27/03/2026"
-    const recDateM = text.match(/receipt\s*date\s*[:\s]*(.{5,20})/i)
+    // Usamos patrón específico de fecha, no .{5,20} greedy (capturaría texto pegado)
+    const recDateM = text.match(/receipt\s*date\s*[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i)
+      ?? text.match(/receipt\s*date\s*[:\s]*(\d{1,2}\s+\w+\s+\d{4})/i)
     if (recDateM) {
-      const d = parseDate(recDateM[1].trim().substring(0, 20))
+      const d = parseDate(recDateM[1].trim())
       if (d) result.invoice_date = d
     }
 
     // Total: "Totalpayable€224.85" o "Total payable € 224.85"
-    const recTotalM = text.match(/total\s*payable\s*[€$£]?\s*([0-9.,]+)/i)
+    const recTotalM = text.match(/(?:total\s*payable|receipt\s*total)\s*[€$£]?\s*([0-9.,]+)/i)
     if (recTotalM) result.total_amount = parseNum(recTotalM[1])
 
     if (result.invoice_number && result.invoice_date && result.total_amount) return result
