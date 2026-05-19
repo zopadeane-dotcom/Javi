@@ -136,11 +136,17 @@ export function extractFromText(rawText: string): InvoiceData {
   // PDF puede concatenar palabras sin espacios: "SoldbyShanXi...", "Receiptdate27.03.2026"
   if (/receipt/i.test(text) && /sold\s*by/i.test(text)) {
     // Proveedor: "Sold by [nombre]" o "SoldbyShanXi..."
+    // Proveedor: intentar "Sold by" primero, luego sufijo GongSi (empresas chinas)
     const soldByM = text.match(/sold\s*by\s*([^\n]{3,100})/i)
     if (soldByM) {
       const name = soldByM[1].trim().split(/\n/)[0].trim()
       if (!/^(joanna|juan|maria|jose|pedro|avenida|calle)/i.test(name) && !/@/.test(name))
         result.supplier_name = name
+    }
+    // Fallback: nombre con sufijo chino GongSi/Co/Ltd visible en el texto
+    if (!result.supplier_name) {
+      const gongsiM = text.match(/([A-Za-z]{5,}(?:GongSi|Co\b|Ltd\b|Limited))/i)
+      if (gongsiM) result.supplier_name = gongsiM[1]
     }
     // Si el nombre está en la línea siguiente (segunda aparición de "Sold by")
     if (!result.supplier_name) {
@@ -154,8 +160,9 @@ export function extractFromText(rawText: string): InvoiceData {
       }
     }
 
-    // Número: "Receipt # INV..." — el # puede ser carácter especial, usamos \W (cualquier no-palabra)
-    const recNumM = text.match(/receipt\s*\W\s*([A-Z0-9][\w\-]{3,25})/i)
+    // Número: buscar INV+dígitos directamente (independiente del separador)
+    const recNumM = text.match(/\b(INV[A-Z0-9]{6,20})\b/i)
+      ?? text.match(/receipt\s*\W\s*([A-Z0-9][\w\-]{3,25})/i)
     if (recNumM) result.invoice_number = recNumM[1].trim()
 
     // Fecha: "Receiptdate27.03.2026" o "Receipt date: 27/03/2026"
@@ -392,7 +399,9 @@ export function extractFromText(rawText: string): InvoiceData {
     // Número pegado a la fecha sin separador: "260022921/04/2026" → "2600229"
     // Usa cuantificador no-codicioso para extraer el número antes del día de la fecha
     /\b(\d{4,10}?)\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4}\b/,
-    // "Receipt # INV2603270063" — el # puede ser carácter especial
+    // "INV2603270063" — número de recibo marketplace (sin depender del separador)
+    /\b(INV[A-Z0-9]{6,20})\b/i,
+    // "Receipt # INV..." — separador puede ser carácter especial
     /receipt\s*\W\s*([A-Z0-9][\w\-]{3,25})/i,
     // "Ref:" como último recurso
     /\bref(?:erencia)?[:\s]+([A-Z0-9][\w\-\/]{2,20})/i,
