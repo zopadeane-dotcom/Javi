@@ -136,17 +136,18 @@ export function extractFromText(rawText: string): InvoiceData {
   // PDF puede concatenar palabras sin espacios: "SoldbyShanXi...", "Receiptdate27.03.2026"
   if (/receipt/i.test(text) && /sold\s*by/i.test(text)) {
     // Proveedor: "Sold by [nombre]" o "SoldbyShanXi..."
-    // Proveedor: intentar "Sold by" primero, luego sufijo GongSi (empresas chinas)
-    const soldByM = text.match(/sold\s*by\s*([^\n]{3,100})/i)
-    if (soldByM) {
-      const name = soldByM[1].trim().split(/\n/)[0].trim()
-      if (!/^(joanna|juan|maria|jose|pedro|avenida|calle)/i.test(name) && !/@/.test(name))
-        result.supplier_name = name
-    }
-    // Fallback: nombre con sufijo chino GongSi/Co/Ltd visible en el texto
+    // Proveedor: GongSi es 100% fiable (sufijo de empresa china en pinyin) — va primero
+    const gongsiM = text.match(/([A-Za-z]{5,}GongSi)\b/i)
+    if (gongsiM) result.supplier_name = gongsiM[1]
+
+    // Si no hay GongSi, intentar "Sold by"
     if (!result.supplier_name) {
-      const gongsiM = text.match(/([A-Za-z]{5,}(?:GongSi|Co\b|Ltd\b|Limited))/i)
-      if (gongsiM) result.supplier_name = gongsiM[1]
+      const soldByM = text.match(/sold\s*by\s*([^\n]{3,100})/i)
+      if (soldByM) {
+        const name = soldByM[1].trim().split(/\n/)[0].trim()
+        if (!/^(joanna|juan|maria|jose|pedro|avenida|calle)/i.test(name) && !/@/.test(name))
+          result.supplier_name = name
+      }
     }
     // Si el nombre está en la línea siguiente (segunda aparición de "Sold by")
     if (!result.supplier_name) {
@@ -650,7 +651,7 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // B: fallback — primera línea de la zona emisor que parezca un nombre (≥2 palabras)
-  const LINE_KEYWORDS = /^(factura|fecha|n[uú]m|p[aá]g|total|base|iva|ref|tel[eé]?f?|fax|email|e-mail|web|cif|nif|c\.i\.f|n\.i\.f|ctra|carretera|avda|calle|c\/|pol[íi]gono|apdo|c\.p\.|transporte|pago|banco|iban|bic|comercial|compras|ventas|albar[aá]n|pedido|moneda|euro|página)/i
+  const LINE_KEYWORDS = /^(factura|fecha|n[uú]m|p[aá]g|total|base|iva|ref|tel[eé]?f?|fax|email|e-mail|web|cif|nif|c\.i\.f|n\.i\.f|ctra|carretera|avda|calle|c\/|pol[íi]gono|apdo|c\.p\.|transporte|pago|banco|iban|bic|comercial|compras|ventas|albar[aá]n|pedido|moneda|euro|página|receipt|paid|billing|delivery|order)/i
   if (!result.supplier_name) {
     const candidate = searchLines.find((l) => {
       if (l.length < 4 || l.length > 70) return false
