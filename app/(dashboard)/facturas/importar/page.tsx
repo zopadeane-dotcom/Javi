@@ -295,8 +295,39 @@ export default function ImportarFacturasPage() {
         setSavingProgress(Math.round((saved / total) * 100))
       } catch { /* continúa con la siguiente */ }
     }
+    // Guardar automáticamente en Otros documentos todo lo que no se pudo procesar como factura
+    const incompletas = invoiceRows.filter((r) => !r.saved)
+    const todasExtras = [...incompletas, ...otherRows]
+    let savedOtros = 0
+    for (const row of todasExtras) {
+      try {
+        let fileUrl: string | undefined
+        if (profile?.business_id) {
+          const ext = row.file.name.split(".").pop() ?? "pdf"
+          const path = `${profile.business_id}/otros/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+          const { error } = await supabase.storage.from("documents").upload(path, row.file)
+          if (!error) fileUrl = path
+        }
+        const missingFields = [
+          !row.invoice_number && "nº factura",
+          !row.invoice_date && "fecha",
+          !row.base_amount && "base imponible",
+          !row.supplier_name && !row.supplier_id && "proveedor",
+        ].filter(Boolean).join(", ")
+
+        const fd = new FormData()
+        fd.append("original_filename", row.file.name)
+        fd.append("reason", row.detectionReason ?? (missingFields ? `Incompleta: faltan ${missingFields}` : "Revisión pendiente"))
+        fd.append("detected_type", row.documentType ?? "invoice")
+        if (fileUrl) fd.append("file_url", fileUrl)
+        if (row.supplier_name) fd.append("supplier_name", row.supplier_name)
+        await saveOtherDocument(fd)
+        savedOtros++
+      } catch { /* continúa */ }
+    }
+
     setStep("done")
-    toast.success(`¡${saved} factura${saved !== 1 ? "s" : ""} importada${saved !== 1 ? "s" : ""}!`)
+    toast.success(`¡${saved} factura${saved !== 1 ? "s" : ""} importada${saved !== 1 ? "s" : ""}!${savedOtros > 0 ? ` ${savedOtros} guardada${savedOtros !== 1 ? "s" : ""} en Otros documentos.` : ""}`)
   }
 
   async function saveOtherDocs() {
