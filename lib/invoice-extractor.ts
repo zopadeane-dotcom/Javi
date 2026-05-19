@@ -562,6 +562,17 @@ export function extractFromText(rawText: string): InvoiceData {
   }
 
   // ════════════════════════════════════════════════════════
+  // 5b. Empresa china por sufijo GongSi — independiente de cualquier bloque
+  //     Funciona aunque haya caracteres invisibles entre "Sold" y "by"
+  // ════════════════════════════════════════════════════════
+  if (!result.supplier_name) {
+    const gongsiG = text.match(/([A-Za-z]{5,}GongSi)\b/i)
+    if (gongsiG) {
+      result.supplier_name = gongsiG[1].replace(/^sold.{0,3}by.{0,3}/i, "").trim()
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
   // 6. Nombre del emisor (proveedor)
   //    RD 1619/2012 art.6.1d: "nombre y apellidos/razón social del expedidor"
   //    CLAVE: el emisor va ANTES que el receptor en la factura
