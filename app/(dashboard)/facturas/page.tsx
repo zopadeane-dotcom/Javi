@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Plus, FileText, FolderOpen, TrendingUp, Receipt, BadgePercent, Clock, ArrowRight, Inbox } from "lucide-react"
+import { Plus, FileText, FolderOpen, TrendingUp, Receipt, BadgePercent, Clock, ArrowRight, Inbox, ExternalLink } from "lucide-react"
 
 function formatEur(n: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n)
@@ -184,7 +184,7 @@ export default async function FacturasPage({
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fecha</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nº Factura</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Proveedor</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Concepto</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">PDF</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Base</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">IVA</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
@@ -203,8 +203,20 @@ export default async function FacturasPage({
                       <td className="px-4 py-3 font-medium max-w-[140px] truncate">
                         {inv.suppliers?.name ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs max-w-[160px] truncate hidden md:table-cell">
-                        {inv.concept ?? "—"}
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {inv.file_url ? (
+                          <a
+                            href={`/api/pdf-view?path=${encodeURIComponent(inv.file_url)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/70 font-medium transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Ver PDF
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/40">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatEur(inv.base_amount)}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground hidden sm:table-cell">
