@@ -606,8 +606,14 @@ export function extractFromText(rawText: string): InvoiceData {
   // A: buscar forma jurídica (S.L., S.A., etc.) en TODO el documento
   // La mayoría de empresas españolas son S.L. o S.A. — esto es muy fiable
   if (!result.supplier_name) {
+    // Forma jurídica AL FINAL: "GARCIA DE POU, S.A." / "MR.CHAVA CAFÉS SL"
     const reLegal = new RegExp(
       `([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&\\-]{1,50}\\s${LEGAL_FORMS})`,
+      "gm"
+    )
+    // Forma jurídica AL PRINCIPIO: "S.A.T. LA ZORRERA" / "S.L. NOMBRE"
+    const reLegalFirst = new RegExp(
+      `(${LEGAL_FORMS}\\s+[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\\s,\\.&\\-]{2,50})`,
       "gm"
     )
     const buyerZone = buyerIdx > 0 ? text.substring(buyerIdx, buyerIdx + 400) : ""
@@ -615,7 +621,7 @@ export function extractFromText(rawText: string): InvoiceData {
     // Separadores de etiquetas de documento pegadas en el texto del PDF
     const DOC_SPLIT = /CLIENTE|N[UÚ]MERO|FECHA|P[AÁ]G\.?|FACTURA|VENDEDOR|EMISOR|DATOS|REF\.?|C[OÓ]D\.?|PROVEEDOR|RAZ[OÓ]N\s+SOCIAL|DIRECCI[OÓ]N|MONEDA/gi
     const legalTestRe = new RegExp(LEGAL_FORMS, "i")
-    const allLegal = [...text.matchAll(reLegal)]
+    const allLegal = [...text.matchAll(reLegal), ...text.matchAll(reLegalFirst)]
       .map((m) => {
         const raw = m[1].trim().replace(/\s+/g, " ")
         // Dividir por etiquetas; reconstruir el fragmento que contiene la forma jurídica
