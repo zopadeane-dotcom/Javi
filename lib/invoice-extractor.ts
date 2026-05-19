@@ -138,7 +138,10 @@ export function extractFromText(rawText: string): InvoiceData {
     // Proveedor: "Sold by [nombre]" o "SoldbyShanXi..."
     // Proveedor: GongSi es 100% fiable (sufijo de empresa china en pinyin) — va primero
     const gongsiM = text.match(/([A-Za-z]{5,}GongSi)\b/i)
-    if (gongsiM) result.supplier_name = gongsiM[1]
+    if (gongsiM) {
+      // Quitar prefijos pegados como "Soldby" que no forman parte del nombre
+      result.supplier_name = gongsiM[1].replace(/^sold\s*by\s*/i, "").trim()
+    }
 
     // Si no hay GongSi, intentar "Sold by"
     if (!result.supplier_name) {
